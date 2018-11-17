@@ -8,7 +8,7 @@ object TraceAnalysis {
 
   def main(args: Array[String]): Unit = {
 
-    Logger.getLogger("org").setLevel(Level.OFF)
+    //Logger.getLogger("org").setLevel(Level.OFF)
 
     // initialize spark session
 
@@ -22,14 +22,20 @@ object TraceAnalysis {
 
     import spark.implicits._
 
-    val tdf = spark.read.option("multiline", "true").json("../test1.json")
+    val tdf = spark.read.option("multiline", "true").json("../packet export.json")
     //tdf.printSchema()
 
-    //tdf.createOrReplaceTempView("tdf")
-    //tdf.show(1,false).toString
-    val tdf_2 = tdf.select(tdf.col("_source.layers.tcp"))
-    tdf_2.printSchema()
-    print(tdf_2.where($"tcp" isNotNull).count.toInt)
+    tdf.createOrReplaceTempView("tdf")
+    tdf.show(1,false).toString
+//    val tdf_2 = tdf.select(tdf.col("_source.layers.tcp")).where($"tcp" isNotNull).toDF()
+//    tdf_2.printSchema()
+//    tdf_2.createOrReplaceTempView("tdf_2")
+    //tdf_2.show(1,false).toString
+    //tdf_2.write.mode(SaveMode.Overwrite).csv("src/main/out/dis")
+
+    //println(tdf_2.count())
+
+//    print(tdf_2.where($"tcp" isNotNull).count.toInt)
 
     println("HelloWorld!")
   }

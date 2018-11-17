@@ -1,0 +1,6 @@
+842185 TCP packets
+93134 UDP packets
+967133 Ethernet packets
+945822 IP packets
+0 ICMP packets
+967143 total packets

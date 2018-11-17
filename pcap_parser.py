@@ -30,26 +30,26 @@ for packet in packets:
 
     elif packet.haslayer(ICMP):
         icmp_count += 1
-        ip_bytes += len(packet)
+        icmp_bytes += len(packet)
 
 
     if packet.haslayer(TCP):
         tcp_count += 1
-        ip_bytes += len(packet)
+        tcp_bytes += len(packet)
 
     elif packet.haslayer(UDP):
         udp_count += 1
-        ip_bytes += len(packet)
+        udp_bytes += len(packet)
 
     total_len += len(packet)
 
 
 file = open("data.txt", "w")
 
-file.write("number of packets that use Ethernet: " + str(ethernet_count) + " percentage is: " + str(ethernet_count/counter) + "and total bytes: " + str(ethernet_bytes) + "\n")
-file.write("number of packets that use IP: " + str(ip_count)  + " percentage is: " + str(ip_count/counter) + "and total bytes: " + str(ip_bytes) + "\n")
-file.write("number of packets that use ICMP: " + str(icmp_count)  + " percentage is: " + str(icmp_count/counter) + "and total bytes: " + str(icmp_bytes) + "\n")
-file.write("number of packets that use UDP: " + str(udp_count)  + " percentage is: " + str(udp_count/counter) + "and total bytes: " + str(udp_bytes) + "\n")
-file.write("number of packets that use TCP: " + str(tcp_count)  + " percentage is: " + str(tcp_count/counter) + "and total bytes: " + str(tcp_bytes) + "\n")
+file.write("number of packets that use Ethernet: " + str(ethernet_count) + " percentage is: " + str(ethernet_count/counter) + " and total bytes: " + str(ethernet_bytes) + "\n")
+file.write("number of packets that use IP: " + str(ip_count)  + " percentage is: " + str(ip_count/counter) + " and total bytes: " + str(ip_bytes) + "\n")
+file.write("number of packets that use ICMP: " + str(icmp_count)  + " percentage is: " + str(icmp_count/counter) + " and total bytes: " + str(icmp_bytes) + "\n")
+file.write("number of packets that use UDP: " + str(udp_count)  + " percentage is: " + str(udp_count/counter) + " and total bytes: " + str(udp_bytes) + "\n")
+file.write("number of packets that use TCP: " + str(tcp_count)  + " percentage is: " + str(tcp_count/counter) + " and total bytes: " + str(tcp_bytes) + "\n")
 file.write("total number of bytes of all packets: " + str(total_len) + "\n")
 file.write("total number of packets: " + str(counter) + "\n")

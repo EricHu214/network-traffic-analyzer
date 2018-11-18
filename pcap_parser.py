@@ -158,32 +158,39 @@ def count_protocols():
     for ts, packet in pkts:
         counter += 1
 
+        header = dpkt.pcap.PktHdr(packet)
+
         eth=dpkt.ethernet.Ethernet(packet)
         if eth.type == dpkt.ethernet.ETH_TYPE_IP or eth.type == dpkt.ethernet.ETH_TYPE_ARP or eth.type == dpkt.ethernet.ETH_TYPE_IP6:
             ethernet_count += 1
-            ethernet_bytes += len(packet)
+            #ethernet_bytes += len(packet)
+            ethernet_bytes += header.len
 
 
         if eth.type==dpkt.ethernet.ETH_TYPE_IP:
             ip_count += 1
-            ip_bytes += len(packet)
-
+            #ip_bytes += len(packet)
+            ip_bytes += header.len
 
             ip = eth.data
 
             if ip.p == dpkt.ip.IP_PROTO_TCP:
                 tcp_count += 1
-                tcp_bytes += len(packet)
+                #tcp_bytes += len(packet)
+                tcp_bytes += header.len
 
             elif ip.p == dpkt.ip.IP_PROTO_UDP:
                 udp_count += 1
-                udp_bytes += len(packet)
+                #udp_bytes += len(packet)
+                udp_bytes += header.len
 
             elif ip.p == dpkt.ip.IP_PROTO_ICMP:
                 icmp_count += 1
-                icmp_bytes += len(packet)
+                #icmp_bytes += len(packet)
+                icmp_bytes += header.len
 
-        total_len += len(packet)
+        #total_len += len(packet)
+        total_len += header.len
 
         #if packet.haslayer(Ether):
         #    ethernet_count += 1
@@ -218,7 +225,6 @@ def count_protocols():
     print("total number of bytes of all packets: " + str(total_len) + "\n")
     print("total number of packets: " + str(counter) + "\n")
 
-    print("total number of packets: " + str(counter) + "\n")
 
 
 #partitionFile()

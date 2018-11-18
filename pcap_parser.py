@@ -1,9 +1,21 @@
 import os
 from scapy.all import *
 
+packets = rdpcap('../univ1_pt16')
+
+index = 0 
+
+while (index+10000) < len(packets):
+    pktdump = PcapWriter("partition/"+str(index), append=True, sync=True)
+    pktdump.write(packets[index:index+10000])
+    index+= 10000
+
+pktdump = PcapWriter("partition/"+str(index), append=True, sync=True)
+pktdump.write(packets[index:len(packets)])
 
 
-packets = rdpcap('univ1_pt16')
+
+
 counter = 0
 tcp_count = 0
 tcp_bytes = 0
@@ -17,31 +29,31 @@ icmp_count = 0
 icmp_bytes = 0
 total_len = 0
 
-for packet in packets:
-    counter += 1
+# for packet in packets:
+#     counter += 1
 
-    if packet.haslayer(Ether):
-        ethernet_count += 1
-        ethernet_bytes += len(packet)
+#     if packet.haslayer(Ether):
+#         ethernet_count += 1
+#         ethernet_bytes += len(packet)
 
-    if packet.haslayer(IP):
-        ip_count += 1
-        ip_bytes += len(packet)
+#     if packet.haslayer(IP):
+#         ip_count += 1
+#         ip_bytes += len(packet)
 
-    elif packet.haslayer(ICMP):
-        icmp_count += 1
-        ip_bytes += len(packet)
+#     elif packet.haslayer(ICMP):
+#         icmp_count += 1
+#         ip_bytes += len(packet)
 
 
-    if packet.haslayer(TCP):
-        tcp_count += 1
-        ip_bytes += len(packet)
+#     if packet.haslayer(TCP):
+#         tcp_count += 1
+#         ip_bytes += len(packet)
 
-    elif packet.haslayer(UDP):
-        udp_count += 1
-        ip_bytes += len(packet)
+#     elif packet.haslayer(UDP):
+#         udp_count += 1
+#         ip_bytes += len(packet)
 
-    total_len += len(packet)
+#     total_len += len(packet)
 
 
 file = open("data.txt", "w")

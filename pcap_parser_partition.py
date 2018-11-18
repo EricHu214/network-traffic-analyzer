@@ -22,8 +22,24 @@ icmp_count = 0
 icmp_bytes = 0
 total_len = 0
 
-threadlock = threading.Lock()
+# threadlock = threading.Lock()
 threads = []
+
+# jacky added 
+tcp_flow_dict ={}
+udp_flow_dict={}
+
+
+# header flag reference
+FIN = 0x01
+SYN = 0x02
+RST = 0x04
+PSH = 0x08
+ACK = 0x10
+URG = 0x20
+ECE = 0x40
+CWR = 0x80
+
 
 
 #def plotCDF():
@@ -80,63 +96,71 @@ def count_protocols(list):
     global icmp_count
     global icmp_bytes
     global total_len
+    # jacky added
+    global tcp_flow_dict
+    global udp_flow_dict
 
 
     for file in list:
         packets = rdpcap('partition/' + str(file))
 
         for packet in packets:
-            threadlock.acquire()
+            # threadlock.acquire()
             counter += 1
-            threadlock.release()
+            # threadlock.release()
 
             if packet.haslayer(Ether):
-                threadlock.acquire()
+                # threadlock.acquire()
                 ethernet_count += 1
                 ethernet_bytes += len(packet)
-                threadlock.release()
+                # threadlock.release()
 
             if packet.haslayer(IP):
-                threadlock.acquire()
+                # threadlock.acquire()
                 ip_count += 1
                 ip_bytes += len(packet)
-                threadlock.release()
+                # threadlock.release()
 
             elif packet.haslayer(ICMP):
-                threadlock.acquire()
+                # threadlock.acquire()
                 icmp_count += 1
                 icmp_bytes += len(packet)
-                threadlock.release()
+                # threadlock.release()
 
 
             if packet.haslayer(TCP):
-                threadlock.acquire()
+                # threadlock.acquire()
                 tcp_count += 1
                 tcp_bytes += len(packet)
-                threadlock.release()
+                if not ((packet[IP].src,packet[IP].dst) in tcp_flow_dict) :
+                    tcp_flow_dict[(packet[IP].src,packet[IP].dst)] = []
+
+                tcp_flow_dict[(packet[IP].src,packet[IP].dst)].append([packet[TCP].time,packet.orig_len,packet[TCP].flags]) 
+
+                # threadlock.release()
 
             elif packet.haslayer(UDP):
-                threadlock.acquire()
+                # threadlock.acquire()
                 udp_count += 1
                 udp_bytes += len(packet)
-                threadlock.release()
+                if not ((packet[IP].src,packet[IP].dst) in udp_flow_dict) :
+                    udp_flow_dict[(packet[IP].src,packet[IP].dst)] = []
 
-            threadlock.acquire()
+                udp_flow_dict[(packet[IP].src,packet[IP].dst)].append([packet[UDP].time,packet.orig_len]) 
+                # threadlock.release()
+
+            # threadlock.acquire()
             total_len += len(packet)
-            threadlock.release()
+            # threadlock.release()
 
-#counter = 0
-#tcp_count = 0
-#tcp_bytes = 0
-#udp_count = 0
-#udp_bytes = 0
-#ethernet_count = 0
-#ethernet_bytes = 0
-#ip_count = 0
-#ip_bytes = 0
-#icmp_count = 0
-#icmp_bytes = 0
-#total_len = 0
+
+# example of flags 
+
+# F = p['TCP'].flags    # this should give you an integer
+# if F & FIN:
+#     # FIN flag activated
+# if F & SYN:
+    # SYN flag activated
 
 
 #for packet in packets:
@@ -208,3 +232,4 @@ file.write("number of packets that use UDP: " + str(udp_count)  + " percentage i
 file.write("number of packets that use TCP: " + str(tcp_count)  + " percentage is: " + str(tcp_count/counter) + " and total bytes: " + str(tcp_bytes) + "\n")
 file.write("total number of bytes of all packets: " + str(total_len) + "\n")
 file.write("total number of packets: " + str(counter) + "\n")
+file.write("tcp flow: " + str(tcp_flow_dict))

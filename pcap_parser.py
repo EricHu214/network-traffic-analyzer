@@ -3,6 +3,19 @@ from scapy.all import *
 import matplotlib.pyplot as plt
 
 
+packets = rdpcap('../univ1_pt16')
+
+index = 0
+
+while (index+10000) < len(packets):
+    pktdump = PcapWriter("partition/"+str(index), append=True, sync=True)
+    pktdump.write(packets[index:index+10000])
+    index+= 10000
+
+pktdump = PcapWriter("partition/"+str(index), append=True, sync=True)
+pktdump.write(packets[index:len(packets)])
+
+
 
 
 packets = rdpcap('univ1_pt16')

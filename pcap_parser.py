@@ -2,6 +2,7 @@ import os
 from scapy.all import *
 import matplotlib.pyplot as plt
 import dpkt
+import pyshark
 
 
 
@@ -25,6 +26,13 @@ def partitionFile():
 #packets = rdpcap('univ1_pt16')
 
 
+def pysharkCapture():
+    cap = pyshark.FileCapture('univ1_pt16')
+    total_len = 0
+    for packet in cap:
+        total_len += int(packet.length)
+
+    print(total_len)
 
 def plotCDF():
     x_data = []
@@ -42,13 +50,14 @@ def plotCDF():
     y_ip_header = []
 
 
-    for i in range(100):
-        x_data.append(i)
-        y_data.append(0)
-        y_data_tcp.append(0)
-        y_data_udp.append(0)
-        y_data_ip.append(0)
-        y_data_nonip.append(0)
+    for i in range(1000):
+        if i % 5 == 0:
+            x_data.append(i)
+            y_data.append(0)
+            y_data_tcp.append(0)
+            y_data_udp.append(0)
+            y_data_ip.append(0)
+            y_data_nonip.append(0)
 
     for i in range(41):
         x_header.append(i)
@@ -57,37 +66,56 @@ def plotCDF():
         y_ip_header.append(0)
 
 
-    for packet, (sec, usec, caplen, wirelen) in RawPcapReader('univ1_pt16'):
+    pkts = dpkt.pcap.Reader(open('univ1_pt16', "rb"))
+
+    for wirelen, ts, packet in pkts:
         counter = 0
+
+        #header = dpkt.pcap.PktHdr(packet)
+        eth=dpkt.ethernet.Ethernet(packet)
 
         for size in x_data:
 
-            if len(packet) <= size:
+            if wirelen <= size:
                 y_data[counter] += 1
 
-                if packet.haslayer(TCP):
-                    y_data_tcp[counter] += 1
 
-                elif packet.haslayer(UDP):
-                    y_data_udp[counter] += 1
-
-                if packet.haslayer(IP):
+                if eth.type==dpkt.ethernet.ETH_TYPE_IP:
                     y_data_ip[counter] += 1
+
+                    ip = eth.data
+                    if ip.p == dpkt.ip.IP_PROTO_TCP:
+                        y_data_tcp[counter] += 1
+
+                    elif ip.p == dpkt.ip.IP_PROTO_UDP:
+                        y_data_udp[counter] += 1
                 else:
                     y_data_nonip[counter] += 1
 
-            if size <= 40:
-                if packet.haslayer(IP) and len(packet.getlayer(IP)) <= size:
-                    y_ip_header[counter] += 1
-
-                if packet.haslayer(TCP) and len(packet.getlayer(TCP)) <= size:
-                    y_tcp_header[counter] += 1
-                elif packet.haslayer(UDP) and len(packet.getlayer(UDP)) <= size:
-                    y_udp_header[counter] += 1
-
             counter += 1
+                #
+                #if packet.haslayer(TCP):
+                #    y_data_tcp[counter] += 1
 
-        countr = 0
+                #elif packet.haslayer(UDP):
+                #    y_data_udp[counter] += 1
+
+                #if packet.haslayer(IP):
+                #    y_data_ip[counter] += 1
+                #else:
+                #    y_data_nonip[counter] += 1
+
+            #if size <= 40:
+            #    if packet.haslayer(IP) and len(packet.getlayer(IP)) <= size:
+            #        y_ip_header[counter] += 1
+
+            #    if packet.haslayer(TCP) and len(packet.getlayer(TCP)) <= size:
+            #        y_tcp_header[counter] += 1
+            #    elif packet.haslayer(UDP) and len(packet.getlayer(UDP)) <= size:
+            #        y_udp_header[counter] += 1
+
+            #counter += 1
+
 
     plt.xlabel('max packet size')
     plt.ylabel('number of packets')
@@ -120,23 +148,23 @@ def plotCDF():
     plt.clf()
 
 
-    plt.xlabel('max IP header size')
-    plt.ylabel('number of IP packets')
-    plt.plot(x_data, y_ip_header)
-    plt.savefig("header size of IP packets.png")
-    plt.clf()
+    #plt.xlabel('max IP header size')
+    #plt.ylabel('number of IP packets')
+    #plt.plot(x_data, y_ip_header)
+    #plt.savefig("header size of IP packets.png")
+    #plt.clf()
 
-    plt.xlabel('max TCP header size')
-    plt.ylabel('number of TCP packets')
-    plt.plot(x_data, y_tcp_header)
-    plt.savefig("header size of TCP packets.png")
-    plt.clf()
+    #plt.xlabel('max TCP header size')
+    #plt.ylabel('number of TCP packets')
+    #plt.plot(x_data, y_tcp_header)
+    #plt.savefig("header size of TCP packets.png")
+    #plt.clf()
 
-    plt.xlabel('max UDP header size')
-    plt.ylabel('number of UDP packets')
-    plt.plot(x_data, y_udpheader)
-    plt.savefig("header size of UDP packets.png")
-    plt.clf()
+    #plt.xlabel('max UDP header size')
+    #plt.ylabel('number of UDP packets')
+    #plt.plot(x_data, y_udpheader)
+    #plt.savefig("header size of UDP packets.png")
+    #plt.clf()
 
 
 def count_protocols():
@@ -155,42 +183,44 @@ def count_protocols():
 
     pkts = dpkt.pcap.Reader(open('univ1_pt16', "rb"))
 
-    for ts, packet in pkts:
+    for wirelen, ts, packet in pkts:
         counter += 1
 
-        header = dpkt.pcap.PktHdr(packet)
+        #header = dpkt.pcap.PktHdr(packet)
+        #print(wirelen)
+
 
         eth=dpkt.ethernet.Ethernet(packet)
         if eth.type == dpkt.ethernet.ETH_TYPE_IP or eth.type == dpkt.ethernet.ETH_TYPE_ARP or eth.type == dpkt.ethernet.ETH_TYPE_IP6:
             ethernet_count += 1
             #ethernet_bytes += len(packet)
-            ethernet_bytes += header.len
+            ethernet_bytes += wirelen
 
 
         if eth.type==dpkt.ethernet.ETH_TYPE_IP:
             ip_count += 1
             #ip_bytes += len(packet)
-            ip_bytes += header.len
+            ip_bytes += wirelen
 
             ip = eth.data
 
             if ip.p == dpkt.ip.IP_PROTO_TCP:
                 tcp_count += 1
                 #tcp_bytes += len(packet)
-                tcp_bytes += header.len
+                tcp_bytes += wirelen
 
             elif ip.p == dpkt.ip.IP_PROTO_UDP:
                 udp_count += 1
                 #udp_bytes += len(packet)
-                udp_bytes += header.len
+                udp_bytes += wirelen
 
             elif ip.p == dpkt.ip.IP_PROTO_ICMP:
                 icmp_count += 1
                 #icmp_bytes += len(packet)
-                icmp_bytes += header.len
+                icmp_bytes += wirelen
 
         #total_len += len(packet)
-        total_len += header.len
+        total_len += wirelen
 
         #if packet.haslayer(Ether):
         #    ethernet_count += 1
@@ -227,6 +257,8 @@ def count_protocols():
 
 
 
+
 #partitionFile()
-count_protocols()
-#plotCDF()
+#count_protocols()
+plotCDF()
+#pysharkCapture()

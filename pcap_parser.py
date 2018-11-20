@@ -4,7 +4,8 @@ import matplotlib.pyplot as plt
 import dpkt
 
 import pyshark 
-
+import numpy as np
+from pylab import *
 
 
 
@@ -297,11 +298,12 @@ def flow_rebuild():
                 # TCP_flow[(packet[IP].src,packet[IP].dst)][0].append(packet[TCP].time) 
                 # TCP_flow[(packet[IP].src,packet[IP].dst)][1].append(wirelen) 
                 # TCP_flow[(packet[IP].src,packet[IP].dst)][2].append(packet[TCP].flags) 
-                if not ((packet[IP].src,packet[IP].dst) in TCP_flow_pc):
-                    TCP_flow_pc[(packet[IP].src,packet[IP].dst)] = 0
-                TCP_flow_pc[(packet[IP].src,packet[IP].dst)] += 1
-                TCP_flow_bs[(packet[IP].src,packet[IP].dst)] += wirelen
-                TCP_flow_f[(packet[IP].src,packet[IP].dst)] = packet[TCP].flags
+                if not ((ip.src,ip.dst) in TCP_flow_pc):
+                    TCP_flow_pc[(ip.src,ip.dst)] = 0
+                    TCP_flow_bs[(ip.src,ip.dst)] = 0 
+                TCP_flow_pc[(ip.src,ip.dst)] += 1
+                TCP_flow_bs[(ip.src,ip.dst)] += wirelen
+                TCP_flow_f[(ip.src,ip.dst)] = ip.data.flags
                 
             elif ip.p == dpkt.ip.IP_PROTO_UDP:
                 udp_count += 1
@@ -311,16 +313,26 @@ def flow_rebuild():
                 # UDP_flow[(packet[IP].src,packet[IP].dst)][0].append(packet[UDP].time) 
                 # UDP_flow[(packet[IP].src,packet[IP].dst)][1].append(wirelen)
 
-                if not ((packet[IP].src,packet[IP].dst) in UDP_flow_pc):
-                    UDP_flow_flow_pc[(packet[IP].src,packet[IP].dst)] = 0
-                UDP_flow_pc[(packet[IP].src,packet[IP].dst)] += 1
-                UDP_flow_bs[(packet[IP].src,packet[IP].dst)] += wirelen
+                if not ((ip.src,ip.dst) in UDP_flow_pc):
+                    UDP_flow_pc[(ip.src,ip.dst)] = 0
+                    UDP_flow_bs[(ip.src,ip.dst)]= 0
+                UDP_flow_pc[(ip.src,ip.dst)] += 1
+                UDP_flow_bs[(ip.src,ip.dst)] += wirelen
 
-    TCP_flow_pc.values()     
-    TCP_flow_bs.values()
-    
-    UDP_flow_pc.values()     
-    UDP_flow_bs.values()
+    tcp_pc = list(TCP_flow_pc.values())   
+    tcp_bs = list(TCP_flow_bs.values())
+    udp_pc = list(UDP_flow_pc.values())    
+    udp_bs = list(UDP_flow_bs.values())
+    all_pc = tcp_pc + udp_pc 
+    all_bs = tcp_bs + udp_bs
+
+    # plt.xlabel('flow size in terms of packets number')
+    # plt.ylabel('number of flow')
+    # plt.plot(range(max(all_pc)), tcp_pc)
+    # plt.savefig("number of packets in TCP flow.png")
+    # plt.clf()
+
+
 
 
 
@@ -329,6 +341,7 @@ def flow_rebuild():
 
 
 #partitionFile()
-count_protocols()
-plotCDF()
+# count_protocols()
+# plotCDF()
+flow_rebuild()
 #pysharkCapture()

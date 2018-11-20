@@ -2,7 +2,7 @@ import os
 from scapy.all import *
 import matplotlib.pyplot as plt
 import dpkt
-
+import pyshark 
 
 
 
@@ -153,12 +153,17 @@ def count_protocols():
     icmp_bytes = 0
     total_len = 0
 
-    pkts = dpkt.pcap.Reader(open('univ1_pt16', "rb"))
+    pkts = dpkt.pcap.Reader(open('../univ1_pt16', "rb"))
 
     for ts, packet in pkts:
         counter += 1
 
         header = dpkt.pcap.PktHdr(packet)
+        header_1 = dpkt.pcap.LEPktHdr(packet)
+        if(counter < 10):
+
+            print(packet)
+
 
         eth=dpkt.ethernet.Ethernet(packet)
         if eth.type == dpkt.ethernet.ETH_TYPE_IP or eth.type == dpkt.ethernet.ETH_TYPE_ARP or eth.type == dpkt.ethernet.ETH_TYPE_IP6:

@@ -38,6 +38,7 @@ def plotCDF():
     x_data = []
     y_data = []
 
+    x_data_transp = []
     y_data_tcp = []
     y_data_udp = []
     y_data_ip = []
@@ -50,14 +51,16 @@ def plotCDF():
     y_ip_header = []
 
 
-    for i in range(2000):
-        if i % 10 == 0:
-            x_data.append(i)
-            y_data.append(0)
-            y_data_tcp.append(0)
-            y_data_udp.append(0)
-            y_data_ip.append(0)
-            y_data_nonip.append(0)
+    for i in range(1500):
+        x_data.append(i)
+        y_data.append(0)
+        y_data_nonip.append(0)
+        y_data_ip.append(0)
+
+    for i in range(201):
+        x_data_transp.append(i)
+        y_data_tcp.append(0)
+        y_data_udp.append(0)
 
     for i in range(41):
         x_header.append(i)
@@ -75,46 +78,71 @@ def plotCDF():
         eth=dpkt.ethernet.Ethernet(packet)
 
         for size in x_data:
+            if size <= 40:
+
+                if eth.type == dpkt.ethernet.ETH_TYPE_IP:
+                    ip = eth.data
+                    transp = ip.data
+
+                    if ip.hl*4 <= size:
+                        y_ip_header[counter] += 1
+
+                    if ip.p == dpkt.ip.IP_PROTO_TCP and ip.data.off <= size:
+                        y_tcp_header[counter] += 1
+
+                    elif ip.p == dpkt.ip.IP_PROTO_UDP and size >= 8:
+                        y_udp_header[counter] += 1
+
 
             if wirelen <= size:
                 y_data[counter] += 1
 
 
-                if eth.type==dpkt.ethernet.ETH_TYPE_IP:
+            if eth.type==dpkt.ethernet.ETH_TYPE_IP:
+                ip = eth.data
+                if ip.len <= size:
                     y_data_ip[counter] += 1
 
-                    ip = eth.data
-                    if ip.p == dpkt.ip.IP_PROTO_TCP:
+                if size <= 200:
+                    if ip.p == dpkt.ip.IP_PROTO_TCP and (ip.len - ip.hl*4) <= size:
                         y_data_tcp[counter] += 1
 
-                    elif ip.p == dpkt.ip.IP_PROTO_UDP:
+                    elif ip.p == dpkt.ip.IP_PROTO_UDP and ip.data.ulen <= size:
                         y_data_udp[counter] += 1
-                else:
-                    y_data_nonip[counter] += 1
+
+            elif wirelen <= size:
+                y_data_nonip[counter] += 1
+
+
+            #if wirelen <= size:
+            #    y_data[counter] += 1
+
+
+            #    if eth.type==dpkt.ethernet.ETH_TYPE_IP:
+            #        ip = eth.data
+
+            #        y_data_ip[counter] += 1
+
+            #        if ip.p == dpkt.ip.IP_PROTO_TCP:
+            #            y_data_tcp[counter] += 1
+
+            #        elif ip.p == dpkt.ip.IP_PROTO_UDP:
+            #            y_data_udp[counter] += 1
+            #    else:
+            #        y_data_nonip[counter] += 1
+
 
             counter += 1
-                #
-                #if packet.haslayer(TCP):
-                #    y_data_tcp[counter] += 1
 
-                #elif packet.haslayer(UDP):
-                #    y_data_udp[counter] += 1
+    y_data[:] = [x/967143 for x in y_data]
+    y_data_tcp[:] = [x/967143 for x in y_data_tcp]
+    y_data_udp[:] = [x/967143 for x in y_data_udp]
+    y_data_ip[:] = [x/967143 for x in y_data_ip]
+    y_data_nonip[:] = [x/967143 for x in y_data_nonip]
 
-                #if packet.haslayer(IP):
-                #    y_data_ip[counter] += 1
-                #else:
-                #    y_data_nonip[counter] += 1
-
-            #if size <= 40:
-            #    if packet.haslayer(IP) and len(packet.getlayer(IP)) <= size:
-            #        y_ip_header[counter] += 1
-
-            #    if packet.haslayer(TCP) and len(packet.getlayer(TCP)) <= size:
-            #        y_tcp_header[counter] += 1
-            #    elif packet.haslayer(UDP) and len(packet.getlayer(UDP)) <= size:
-            #        y_udp_header[counter] += 1
-
-            #counter += 1
+    y_ip_header[:] = [x/967143 for x in y_ip_header]
+    y_tcp_header[:] = [x/967143 for x in y_tcp_header]
+    y_udp_header[:] = [x/967143 for x in y_udp_header]
 
 
     plt.xlabel('max packet size')
@@ -125,13 +153,13 @@ def plotCDF():
 
     plt.xlabel('max TCP packet size')
     plt.ylabel('number of TCP packets')
-    plt.plot(x_data, y_data_tcp)
+    plt.plot(x_data_transp, y_data_tcp)
     plt.savefig("packet size of tcp packets.png")
     plt.clf()
 
     plt.xlabel('max UDP packet size')
     plt.ylabel('number of UDP packets')
-    plt.plot(x_data, y_data_udp)
+    plt.plot(x_data_transp, y_data_udp)
     plt.savefig("packet size of udp packets.png")
     plt.clf()
 
@@ -147,24 +175,23 @@ def plotCDF():
     plt.savefig("packet size of nonip packets.png")
     plt.clf()
 
+    plt.xlabel('max IP header size')
+    plt.ylabel('number of IP packets')
+    plt.plot(x_header, y_ip_header)
+    plt.savefig("header size of IP packets.png")
+    plt.clf()
 
-    #plt.xlabel('max IP header size')
-    #plt.ylabel('number of IP packets')
-    #plt.plot(x_data, y_ip_header)
-    #plt.savefig("header size of IP packets.png")
-    #plt.clf()
+    plt.xlabel('max TCP header size')
+    plt.ylabel('number of TCP packets')
+    plt.plot(x_header, y_tcp_header)
+    plt.savefig("header size of TCP packets.png")
+    plt.clf()
 
-    #plt.xlabel('max TCP header size')
-    #plt.ylabel('number of TCP packets')
-    #plt.plot(x_data, y_tcp_header)
-    #plt.savefig("header size of TCP packets.png")
-    #plt.clf()
-
-    #plt.xlabel('max UDP header size')
-    #plt.ylabel('number of UDP packets')
-    #plt.plot(x_data, y_udpheader)
-    #plt.savefig("header size of UDP packets.png")
-    #plt.clf()
+    plt.xlabel('max UDP header size')
+    plt.ylabel('number of UDP packets')
+    plt.plot(x_header, y_udp_header)
+    plt.savefig("header size of UDP packets.png")
+    plt.clf()
 
 
 def count_protocols():
@@ -185,10 +212,6 @@ def count_protocols():
 
     for wirelen, ts, packet in pkts:
         counter += 1
-
-        #header = dpkt.pcap.PktHdr(packet)
-        #print(wirelen)
-
 
         eth=dpkt.ethernet.Ethernet(packet)
         if eth.type == dpkt.ethernet.ETH_TYPE_IP or eth.type == dpkt.ethernet.ETH_TYPE_ARP or eth.type == dpkt.ethernet.ETH_TYPE_IP6:
@@ -222,30 +245,6 @@ def count_protocols():
         #total_len += len(packet)
         total_len += wirelen
 
-        #if packet.haslayer(Ether):
-        #    ethernet_count += 1
-        #    ethernet_bytes += len(packet)
-
-        #if packet.haslayer(IP):
-        #    ip_count += 1
-        #    ip_bytes += len(packet)
-
-        #elif packet.haslayer(ICMP):
-        #    icmp_count += 1
-        #    icmp_bytes += len(packet)
-
-
-        #if packet.haslayer(TCP):
-        #    tcp_count += 1
-        #    tcp_bytes += len(packet)
-
-        #elif packet.haslayer(UDP):
-        #    udp_count += 1
-        #    udp_bytes += len(packet)
-
-        #total_len += len(packet)
-
-    #file = open("data.txt", "w")
 
     print("number of packets that use Ethernet: " + str(ethernet_count) + " percentage is: " + str(ethernet_count/counter*100) + " and total bytes: " + str(ethernet_bytes) + "\n")
     print("number of packets that use IP: " + str(ip_count)  + " percentage is: " + str(ip_count/counter*100) + " and total bytes: " + str(ip_bytes) + "\n")

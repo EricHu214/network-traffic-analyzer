@@ -50,8 +50,8 @@ def plotCDF():
     y_ip_header = []
 
 
-    for i in range(1000):
-        if i % 5 == 0:
+    for i in range(2000):
+        if i % 10 == 0:
             x_data.append(i)
             y_data.append(0)
             y_data_tcp.append(0)

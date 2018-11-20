@@ -2,7 +2,8 @@ import os
 from scapy.all import *
 import matplotlib.pyplot as plt
 import dpkt
-import pyshark
+
+import pyshark 
 
 
 
@@ -208,7 +209,7 @@ def count_protocols():
     icmp_bytes = 0
     total_len = 0
 
-    pkts = dpkt.pcap.Reader(open('univ1_pt16', "rb"))
+    pkts = dpkt.pcap.Reader(open('../univ1_pt16', "rb"))
 
     for wirelen, ts, packet in pkts:
         counter += 1
@@ -255,9 +256,82 @@ def count_protocols():
     print("total number of packets: " + str(counter) + "\n")
 
 
+def flow_rebuild():
+
+    # header flag reference
+    FIN = 0x01
+    SYN = 0x02
+    RST = 0x04
+    PSH = 0x08
+    ACK = 0x10
+    URG = 0x20
+    ECE = 0x40
+    CWR = 0x80
+
+    TCP_flow_pc={}
+    UDP_flow_pc={}
+
+    TCP_flow_bs={}
+    UDP_flow_bs={}
+
+    TCP_flow_f={}
+
+    counter = 0
+    tcp_count = 0
+    udp_count = 0
+
+
+    pkts = dpkt.pcap.Reader(open('univ1_pt16', "rb"))
+
+    for wirelen, ts, packet in pkts:
+        counter += 1
+
+        eth=dpkt.ethernet.Ethernet(packet)
+
+        if eth.type==dpkt.ethernet.ETH_TYPE_IP:
+            
+            ip = eth.data
+
+            if ip.p == dpkt.ip.IP_PROTO_TCP:
+                tcp_count += 1
+                # if not ((packet[IP].src,packet[IP].dst) in TCP_flow):
+                #     TCP_flow[(packet[IP].src,packet[IP].dst)] = [[],[],[]]
+                # # TCP_flow[(packet[IP].src,packet[IP].dst)][0].append([packet[TCP].time,wirelen,packet[TCP].flags]) 
+                # TCP_flow[(packet[IP].src,packet[IP].dst)][0].append(packet[TCP].time) 
+                # TCP_flow[(packet[IP].src,packet[IP].dst)][1].append(wirelen) 
+                # TCP_flow[(packet[IP].src,packet[IP].dst)][2].append(packet[TCP].flags) 
+                if not ((packet[IP].src,packet[IP].dst) in TCP_flow_pc):
+                    TCP_flow_pc[(packet[IP].src,packet[IP].dst)] = 0
+                TCP_flow_pc[(packet[IP].src,packet[IP].dst)] += 1
+                TCP_flow_bs[(packet[IP].src,packet[IP].dst)] += wirelen
+                TCP_flow_f[(packet[IP].src,packet[IP].dst)] = packet[TCP].flags
+                
+            elif ip.p == dpkt.ip.IP_PROTO_UDP:
+                udp_count += 1
+                # if not ((packet[IP].src,packet[IP].dst) in UDP_flow):
+                #     UDP_flow[(packet[IP].src,packet[IP].dst)] = [[],[]]
+                # # UDP_flow[(packet[IP].src,packet[IP].dst)].append([packet[UDP].time,wirelen]) 
+                # UDP_flow[(packet[IP].src,packet[IP].dst)][0].append(packet[UDP].time) 
+                # UDP_flow[(packet[IP].src,packet[IP].dst)][1].append(wirelen)
+
+                if not ((packet[IP].src,packet[IP].dst) in UDP_flow_pc):
+                    UDP_flow_flow_pc[(packet[IP].src,packet[IP].dst)] = 0
+                UDP_flow_pc[(packet[IP].src,packet[IP].dst)] += 1
+                UDP_flow_bs[(packet[IP].src,packet[IP].dst)] += wirelen
+
+    TCP_flow_pc.values()     
+    TCP_flow_bs.values()
+    
+    UDP_flow_pc.values()     
+    UDP_flow_bs.values()
+
+
+
+
+
 
 
 #partitionFile()
-#count_protocols()
+count_protocols()
 plotCDF()
 #pysharkCapture()

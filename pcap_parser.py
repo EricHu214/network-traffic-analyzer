@@ -3,14 +3,10 @@ from scapy.all import *
 import matplotlib.pyplot as plt
 import dpkt
 
-<<<<<<< HEAD
 import pyshark 
 import numpy as np
 from pylab import *
-=======
-import pyshark
 
->>>>>>> 01425b79802cefd99afd3069117e80afbebd8b7d
 
 
 
@@ -303,17 +299,23 @@ def flow_rebuild():
     ECE = 0x40
     CWR = 0x80
 
+
     TCP_flow_pc={}
-    UDP_flow_pc={}
-
     TCP_flow_bs={}
-    UDP_flow_bs={}
-
     TCP_flow_f={}
+    TCP_flow_dir={}
+
+
+    UDP_flow_pc={}
+    UDP_flow_bs={}
+    UDP_flow_dir={}
+
+    
 
     counter = 0
     tcp_count = 0
     udp_count = 0
+
 
 
     pkts = dpkt.pcap.Reader(open('univ1_pt16', "rb"))
@@ -336,13 +338,22 @@ def flow_rebuild():
                 # TCP_flow[(packet[IP].src,packet[IP].dst)][0].append(packet[TCP].time)
                 # TCP_flow[(packet[IP].src,packet[IP].dst)][1].append(wirelen)
                 # TCP_flow[(packet[IP].src,packet[IP].dst)][2].append(packet[TCP].flags)
-                if not ((ip.src, ip.dst) in TCP_flow_pc):
+                if not ((ip.src, ip.dst) in TCP_flow_pc) or ((ip.dst, ip.src) in TCP_flow_pc):
                     TCP_flow_pc[(ip.src, ip.dst)] = 0
                     TCP_flow_bs[(ip.src, ip.dst)] = 0
+                    TCP_flow_f[(ip.src, ip.dst)] = []
+                    TCP_flow_dir=[]
+                elif (ip.src, ip.dst) in TCP_flow_pc:
+                    TCP_flow_pc[(ip.src, ip.dst)] += 1
+                    TCP_flow_bs[(ip.src, ip.dst)] += wirelen
+                    TCP_flow_f[(ip.src, ip.dst)].append(ip.data.flags)
+                    TCP_flow_dir.append((ip.src, ip.dst))
+                else: 
+                    TCP_flow_pc[(ip.dst, ip.src)] += 1
+                    TCP_flow_bs[(ip.dst, ip.src)] += wirelen
+                    TCP_flow_f[(ip.dst, ip.src)].append(ip.data.flags)
+                    TCP_flow_dir.append((ip.src, ip.dst))
 
-                TCP_flow_pc[(ip.src, ip.dst)] += 1
-                TCP_flow_bs[(ip.src, ip.dst)] += wirelen
-                TCP_flow_f[(ip.src, ip.dst)] = ip.data.flags
 
             elif ip.p == dpkt.ip.IP_PROTO_UDP:
                 udp_count += 1
@@ -352,13 +363,19 @@ def flow_rebuild():
                 # UDP_flow[(packet[IP].src,packet[IP].dst)][0].append(packet[UDP].time)
                 # UDP_flow[(packet[IP].src,packet[IP].dst)][1].append(wirelen)
 
-                if not ((ip.src, ip.dst) in UDP_flow_pc):
+                if not ((ip.src, ip.dst) in UDP_flow_pc) or ((ip.dst, ip.src) in UDP_flow_pc):
                     UDP_flow_pc[(ip.src, ip.dst)] = 0
                     UDP_flow_bs[(ip.src, ip.dst)] = 0
-
-                UDP_flow_pc[(ip.src, ip.dst)] += 1
-                UDP_flow_bs[(ip.src, ip.dst)] += wirelen
-
+                    UDP_flow_dir=[]
+                elif (ip.src, ip.dst) in UCP_flow_pc:
+                    UDP_flow_pc[(ip.src, ip.dst)] += 1
+                    UDP_flow_bs[(ip.src, ip.dst)] += wirelen
+                    UDP_flow_dir.append((ip.src, ip.dst))
+                else:
+                    UDP_flow_pc[(ip.dst, ip.src)] += 1
+                    UDP_flow_bs[(ip.dst, ip.src)] += wirelen
+                    UDP_flow_dir.append((ip.dst, ip.src))
+                    
     #TCP_flow_pc.values()
     #TCP_flow_bs.values()
 
@@ -382,5 +399,7 @@ def flow_rebuild():
 
 #count_protocols()
 #plotCDF()
-flow_rebuild()
+# flow_rebuild()
+
+
 

@@ -3,8 +3,6 @@ from scapy.all import *
 import matplotlib.pyplot as plt
 import dpkt
 
-import pyshark
-
 
 
 
@@ -27,19 +25,10 @@ def partitionFile():
 #packets = rdpcap('univ1_pt16')
 
 
-def pysharkCapture():
-    cap = pyshark.FileCapture('univ1_pt16')
-    total_len = 0
-    for packet in cap:
-        total_len += int(packet.length)
 
-    print(total_len)
-
-def plotCDF():
+def plotCDF(step, packetSize, headerSize):
     x_data = []
     y_data = []
-
-    x_data_transp = []
     y_data_tcp = []
     y_data_udp = []
     y_data_ip = []
@@ -52,22 +41,21 @@ def plotCDF():
     y_ip_header = []
 
 
-    for i in range(1500):
-        x_data.append(i)
-        y_data.append(0)
-        y_data_nonip.append(0)
-        y_data_ip.append(0)
+    for i in range(packetSize):
+        if i % step == 0:
+            x_data.append(i)
+            y_data.append(0)
+            y_data_nonip.append(0)
+            y_data_ip.append(0)
+            y_data_tcp.append(0)
+            y_data_udp.append(0)
 
-    for i in range(201):
-        x_data_transp.append(i)
-        y_data_tcp.append(0)
-        y_data_udp.append(0)
-
-    for i in range(41):
-        x_header.append(i)
-        y_tcp_header.append(0)
-        y_udp_header.append(0)
-        y_ip_header.append(0)
+    for i in range(headerSize):
+        if i % step == 0:
+            x_header.append(i)
+            y_tcp_header.append(0)
+            y_udp_header.append(0)
+            y_ip_header.append(0)
 
 
     pkts = dpkt.pcap.Reader(open('univ1_pt16', "rb"))
@@ -79,7 +67,7 @@ def plotCDF():
         eth=dpkt.ethernet.Ethernet(packet)
 
         for size in x_data:
-            if size <= 40:
+            if size < headerSize:
 
                 if eth.type == dpkt.ethernet.ETH_TYPE_IP:
                     ip = eth.data
@@ -95,43 +83,42 @@ def plotCDF():
                         y_udp_header[counter] += 1
 
 
-            if wirelen <= size:
-                y_data[counter] += 1
-
-
-            if eth.type==dpkt.ethernet.ETH_TYPE_IP:
-                ip = eth.data
-                if ip.len <= size:
-                    y_data_ip[counter] += 1
-
-                if size <= 200:
-                    if ip.p == dpkt.ip.IP_PROTO_TCP and (ip.len - ip.hl*4) <= size:
-                        y_data_tcp[counter] += 1
-
-                    elif ip.p == dpkt.ip.IP_PROTO_UDP and ip.data.ulen <= size:
-                        y_data_udp[counter] += 1
-
-            elif wirelen <= size:
-                y_data_nonip[counter] += 1
-
-
             #if wirelen <= size:
             #    y_data[counter] += 1
 
 
-            #    if eth.type==dpkt.ethernet.ETH_TYPE_IP:
-            #        ip = eth.data
-
+            #if eth.type==dpkt.ethernet.ETH_TYPE_IP:
+            #    ip = eth.data
+            #    if ip.len <= size:
             #        y_data_ip[counter] += 1
 
-            #        if ip.p == dpkt.ip.IP_PROTO_TCP:
+            #    if size <= 200:
+            #        if ip.p == dpkt.ip.IP_PROTO_TCP and (ip.len - ip.hl*4) <= size:
             #            y_data_tcp[counter] += 1
 
-            #        elif ip.p == dpkt.ip.IP_PROTO_UDP:
+            #        elif ip.p == dpkt.ip.IP_PROTO_UDP and ip.data.ulen <= size:
             #            y_data_udp[counter] += 1
-            #    else:
-            #        y_data_nonip[counter] += 1
 
+            #elif wirelen <= size:
+            #    y_data_nonip[counter] += 1
+
+
+            if wirelen <= size:
+                y_data[counter] += 1
+
+
+                if eth.type==dpkt.ethernet.ETH_TYPE_IP:
+                    ip = eth.data
+
+                    y_data_ip[counter] += 1
+
+                    if ip.p == dpkt.ip.IP_PROTO_TCP:
+                        y_data_tcp[counter] += 1
+
+                    elif ip.p == dpkt.ip.IP_PROTO_UDP:
+                        y_data_udp[counter] += 1
+                else:
+                    y_data_nonip[counter] += 1
 
             counter += 1
 
@@ -154,13 +141,13 @@ def plotCDF():
 
     plt.xlabel('max TCP packet size')
     plt.ylabel('number of TCP packets')
-    plt.plot(x_data_transp, y_data_tcp)
+    plt.plot(x_data, y_data_tcp)
     plt.savefig("packet size of tcp packets.png")
     plt.clf()
 
     plt.xlabel('max UDP packet size')
     plt.ylabel('number of UDP packets')
-    plt.plot(x_data_transp, y_data_udp)
+    plt.plot(x_data, y_data_udp)
     plt.savefig("packet size of udp packets.png")
     plt.clf()
 
@@ -372,5 +359,5 @@ def flow_rebuild():
 
 #partitionFile()
 #count_protocols()
-#plotCDF()
-flow_rebuild()
+plotCDF(2, 2000, 30)
+#flow_rebuild()

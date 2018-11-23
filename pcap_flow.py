@@ -17,6 +17,7 @@ class Flow:
         self.headerCount = headerlength
         self.dataCount = dataCount
         self.ts = [ts]
+        self.totalTs = 0
 
     def output(self):
         if self.dataCount == 0:
@@ -25,6 +26,16 @@ class Flow:
         else:
             result = float(self.headerCount) / self.dataCount
 
+
+        return result
+
+    def averageInterPacketTime(self):
+        result = float(self.totalTs)/len(self.ts)
+
+        if result == 0:
+            result = -9999
+        else:
+            result = log(result)
 
         return result
 
@@ -40,7 +51,9 @@ class Flow:
 
     def newFlowPacket(self, count, timeStamp):
         self.increaseCount(count)
+        self.totalTs += (timeStamp - self.ts[-1])
         self.addTs(timeStamp)
+
 
 
 
@@ -67,11 +80,11 @@ def f_range(beginning, end, step):
     return list
 
 
-def plotFlow(flowDict, max, step, protocol, flowType, mode):
+def plotFlow(flowDict, min, max, step, protocol, flowType, mode):
     x_data = []
     y_data = []
 
-    for i in f_range(0, max + 1, step):
+    for i in f_range(min, max + 1, step):
         x_data.append(i)
         y_data.append(0)
 
@@ -83,8 +96,11 @@ def plotFlow(flowDict, max, step, protocol, flowType, mode):
                 if mode == 0:
                     if flowDict[key][i].count <= size:
                         y_data[counter] += 1
-                else:
+                elif mode == 1:
                     if flowDict[key][i].output() <= size:
+                        y_data[counter] += 1
+                else:
+                    if flowDict[key][i].averageInterPacketTime() <= size:
                         y_data[counter] += 1
 
                 counter += 1
@@ -227,13 +243,16 @@ def flow_rebuild():
     #UDP_flow_pc.values()
     #UDP_flow_bs.values()
 
-    plotFlow(TCP_flow_pc, 500, 10, "TCP", "packet", 0)
-    plotFlow(TCP_flow_bs, 400000, 100, "TCP", "byte", 0)
+    #plotFlow(TCP_flow_pc, 0, 500, 10, "TCP", "packet", 0)
+    #plotFlow(TCP_flow_bs, 0, 400000, 100, "TCP", "byte", 0)
 
-    plotFlow(UDP_flow_pc, 50, 1, "UDP", "packet", 0)
-    plotFlow(UDP_flow_bs, 4000, 1, "UDP", "byte", 0)
+    #plotFlow(UDP_flow_pc, 0, 50, 1, "UDP", "packet", 0)
+    #plotFlow(UDP_flow_bs, 0, 4000, 1, "UDP", "byte", 0)
 
-    plotFlow(TCP_flow_bs, 20, 0.1, "TCP", "overhead", 1)
+    #plotFlow(TCP_flow_bs, 0, 20, 0.1, "TCP", "overhead", 1)
+
+    plotFlow(TCP_flow_pc, -12, 15, 1, "TCP", "inter-packet time (log)", 2)
+    plotFlow(UDP_flow_pc, -11, 2, 1, "UDP", "inter-packet time (log)", 2)
 
 
 flow_rebuild()

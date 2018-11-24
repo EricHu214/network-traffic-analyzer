@@ -364,10 +364,22 @@ def RTT_from_flow():
     #print(top_ts_num)
 
     topPc = createTopDict(TCP_flow_pc, top_pc_key)
-    createDirectionFlow(topPc)
+    print(createDirectionFlow(topPc))
 
 
+    R = []
 
+    t1 = a.ts
+    t2 = b_of_flow[(a.sq_ac[1],a.sq_ac[0])].ts
+
+    r = t2 -t1
+    alpha = 0.125
+
+    SRTT <- (1 - alpha) * SRTT + alpha * r
+
+    R.append(r)
+
+    top_pc_rtt_l[flow_key] = R 
 
 
 

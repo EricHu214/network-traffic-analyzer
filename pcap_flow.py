@@ -146,6 +146,8 @@ def flow_rebuild():
 
 
 
+
+
     pkts = dpkt.pcap.Reader(open('univ1_pt16', "rb"))
 
     for wirelen, ts, packet in pkts:
@@ -172,7 +174,7 @@ def flow_rebuild():
                 if not (((ip.src, ip.dst, tcp.sport, tcp.dport) in TCP_flow_pc) or ((ip.dst, ip.src, tcp.dport, tcp.sport) in TCP_flow_pc)):
                     TCP_flow_pc[(ip.src, ip.dst, tcp.sport, tcp.dport)] = [Flow(1, ts)]
                     TCP_flow_bs[(ip.src, ip.dst, tcp.sport, tcp.dport)] = [Flow(wirelen, ts, headerSize, dataSize)]
-                    TCP_flow_f[(ip.src, ip.dst, tcp.sport, tcp.dport)] = []
+                    TCP_flow_f[(ip.src, ip.dst, tcp.sport, tcp.dport)] = [ip.data.flags]
                     TCP_flow_dir=[]
 
                 elif (ip.src, ip.dst, tcp.sport, tcp.dport) in TCP_flow_pc:
@@ -236,6 +238,7 @@ def flow_rebuild():
                     UDP_flow_pc[(ip.dst, ip.src, udp.dport, udp.sport)][index].newFlowPacket(1, ts)
                     UDP_flow_bs[(ip.dst, ip.src, udp.dport, udp.sport)][index].newFlowPacket(wirelen, ts)
                     UDP_flow_dir.append((ip.dst, ip.src, udp.dport, udp.sport))
+        end_time = ts
 
     #TCP_flow_pc.values()
     #TCP_flow_bs.values()
@@ -251,8 +254,40 @@ def flow_rebuild():
 
     #plotFlow(TCP_flow_bs, 0, 20, 0.1, "TCP", "overhead", 1)
 
-    plotFlow(TCP_flow_pc, -12, 15, 1, "TCP", "inter-packet time (log)", 2)
-    plotFlow(UDP_flow_pc, -11, 2, 1, "UDP", "inter-packet time (log)", 2)
+    request = 0
+    reset = 0 
+    finish = 0
+    ongoing = 0
+    fail = 0
+
+    for flow_key in TCP_flow_f:
+        flow_state = TCP_flow_f[flow_key]
+
+        if ((flow_state[0] & dpkt.tcp.TH_SYN ) != 0) and len(flow_state) == 1:
+            request += 1
+        elif ((flow_state[-1] & dpkt.tcp.TH_SYN ) != 0): 
+            reset +=1
+        elif ((((flow_state[-1] & dpkt.tcp.TH_ACK ) != 0) and len(flow_state) >=4) and ((flow_state[-1] & dpkt.tcp.TH_FIN ) != 0)) and ((((flow_state[-3] & dpkt.tcp.TH_ACK ) != 0) and ((flow_state[-3] & dpkt.tcp.TH_FIN ) != 0)) and (((flow_state[-2] & dpkt.tcp.TH_FIN ) != 0) and ((flow_state[-4] & dpkt.tcp.TH_FIN ) != 0))):
+            finish += 1
+        else:
+            if (end_time - TCP_flow_bs[flow_key][0].ts[-1])//60 > 5 :
+                fail += 1
+            else:
+                ongoing +=1
+
+    print("request: "+str(request) )
+    print("reset: "+str(reset))
+    print("finish: "+str(finish))
+    print("ongoing: "+str(ongoing))
+    print("fail: "+str(fail))
+
+
+
+
+
+
+    # plotFlow(TCP_flow_pc, -12, 15, 1, "TCP", "inter-packet time (log)", 2)
+    # plotFlow(UDP_flow_pc, -11, 2, 1, "UDP", "inter-packet time (log)", 2)
 
 
 flow_rebuild()

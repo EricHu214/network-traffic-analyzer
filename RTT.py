@@ -7,13 +7,29 @@ import pyshark
 import numpy as np
 from pylab import *
 
+
+class DirectionalFlow:
+    def __init__(self, ts, seq, ack):
+        self.pkts = {}
+        self.pkts[seq] = (ts, ack)
+
+    def addNewPacket(self, ts, seq, ack):
+        if seq in self.pkts:
+            del self.pkts[seq]
+        else:
+            self.pkts[seq] = (ts, ack)
+
+
 class Flow:
-    def __init__(self, count, ts, headerlength=0, dataCount=0):
+    def __init__(self, count, ts, dir = 0, seq = 1, ack = 1, headerlength=0, dataCount=0):
         self.count = count
         self.headerCount = headerlength
         self.dataCount = dataCount
         self.ts = [ts]
         self.totalTs = 0
+        self.dir = [dir]
+        self.seq_ack = [(seq, ack)]
+
 
     def output(self):
         if self.dataCount == 0:
@@ -50,6 +66,9 @@ class Flow:
         self.totalTs += (timeStamp - self.ts[-1])
         self.addTs(timeStamp)
 
+    def addRttInfo(self, dir, seq, ack):
+        self.dir.append(dir)
+        self.seq_ack.append((seq, ack))
 
 def closestTimeStamp(list, currTime):
     result = -1
@@ -61,6 +80,37 @@ def closestTimeStamp(list, currTime):
             break
 
     return result
+
+def createDirectionFlow(flowDict):
+    dict = {}
+    print(len(flowDict))
+
+    for key in flowDict:
+        flow = flowDict[key][0]
+
+        for i in range(len(flow.dir)):
+            if flow.dir[i] == 0:
+                if key not in dict:
+                    dict[key] = DirectionalFlow(flow.ts[i], flow.seq_ack[i][0], flow.seq_ack[i][1])
+                else:
+                    dict[key].addNewPacket(flow.ts[i], flow.seq_ack[i][0], flow.seq_ack[i][1])
+            else:
+                newKey = (key[1], key[0], key[3], key[2])
+                if newKey not in dict:
+                    dict[newKey] = DirectionalFlow(flow.ts[i], flow.seq_ack[i][0], flow.seq_ack[i][1])
+                else:
+                    dict[newKey].addNewPacket(flow.ts[i], flow.seq_ack[i][0], flow.seq_ack[i][1])
+
+    print(len(dict))
+    return dict
+
+def createTopDict(flowDict, keys):
+    dict = {}
+
+    for key in keys:
+        dict[key] = flowDict[key]
+
+    return dict
 
 
 def f_range(beginning, end, step):
@@ -151,23 +201,25 @@ def RTT_from_flow():
 
                 headerSize = 18 + ip.hl * 4 + ip.data.off * 4
                 dataSize = ip.len - ip.hl * 4 - ip.data.off*4
-                
+
                 if not (((ip.src, ip.dst, tcp.sport, tcp.dport) in TCP_flow_pc) or ((ip.dst, ip.src, tcp.dport, tcp.sport) in TCP_flow_pc)):
-                    TCP_flow_pc[(ip.src, ip.dst, tcp.sport, tcp.dport)] = [Flow(1, ts)]
-                    TCP_flow_bs[(ip.src, ip.dst, tcp.sport, tcp.dport)] = [Flow(wirelen, ts, headerSize, dataSize)]
+                    TCP_flow_pc[(ip.src, ip.dst, tcp.sport, tcp.dport)] = [Flow(1, ts, 0, tcp.seq, tcp.ack)]
+                    TCP_flow_bs[(ip.src, ip.dst, tcp.sport, tcp.dport)] = [Flow(wirelen, ts, 0, tcp.seq, tcp.ack, headerSize, dataSize)]
                     TCP_flow_f[(ip.src, ip.dst, tcp.sport, tcp.dport)] = [ip.data.flags]
                     TCP_flow_dir=[]
 
                 elif (ip.src, ip.dst, tcp.sport, tcp.dport) in TCP_flow_pc:
                     index = closestTimeStamp(TCP_flow_pc[(ip.src, ip.dst, tcp.sport, tcp.dport)], ts)
                     if index == -1:
-                        TCP_flow_pc[(ip.src, ip.dst, tcp.sport, tcp.dport)].append(Flow(1, ts))
-                        TCP_flow_bs[(ip.src, ip.dst, tcp.sport, tcp.dport)].append(Flow(wirelen, ts))
+                        TCP_flow_pc[(ip.src, ip.dst, tcp.sport, tcp.dport)].append(Flow(1, ts, 0, tcp.seq, tcp.ack))
+                        TCP_flow_bs[(ip.src, ip.dst, tcp.sport, tcp.dport)].append(Flow(wirelen, ts, 0, tcp.seq, tcp.ack))
                         index = len(TCP_flow_pc[(ip.src, ip.dst, tcp.sport, tcp.dport)]) - 1
 
 
                     TCP_flow_pc[(ip.src, ip.dst, tcp.sport, tcp.dport)][index].newFlowPacket(1, ts)
                     TCP_flow_bs[(ip.src, ip.dst, tcp.sport, tcp.dport)][index].newFlowPacket(wirelen, ts)
+                    TCP_flow_pc[(ip.src, ip.dst, tcp.sport, tcp.dport)][index].addRttInfo(0, tcp.seq, tcp.ack)
+                    TCP_flow_bs[(ip.src, ip.dst, tcp.sport, tcp.dport)][index].addRttInfo(0, tcp.seq, tcp.ack)
                     TCP_flow_bs[(ip.src, ip.dst, tcp.sport, tcp.dport)][index].increaseOverheadCounts(headerSize, dataSize)
                     TCP_flow_f[(ip.src, ip.dst, tcp.sport, tcp.dport)].append(ip.data.flags)
                     TCP_flow_dir.append((ip.src, ip.dst, tcp.sport, tcp.dport))
@@ -175,12 +227,14 @@ def RTT_from_flow():
                 else:
                     index = closestTimeStamp(TCP_flow_pc[(ip.dst, ip.src, tcp.dport, tcp.sport)], ts)
                     if index == -1:
-                        TCP_flow_pc[(ip.dst, ip.src, tcp.dport, tcp.sport)].append(Flow(1, ts))
-                        TCP_flow_bs[(ip.dst, ip.src, tcp.dport, tcp.sport)].append(Flow(wirelen, ts))
+                        TCP_flow_pc[(ip.dst, ip.src, tcp.dport, tcp.sport)].append(Flow(1, ts, 1, tcp.seq, tcp.ack))
+                        TCP_flow_bs[(ip.dst, ip.src, tcp.dport, tcp.sport)].append(Flow(wirelen, ts, 1, tcp.seq, tcp.ack))
                         index = len(TCP_flow_pc[(ip.dst, ip.src, tcp.dport, tcp.sport)]) - 1
 
                     TCP_flow_pc[(ip.dst, ip.src, tcp.dport, tcp.sport)][index].newFlowPacket(1, ts)
                     TCP_flow_bs[(ip.dst, ip.src, tcp.dport, tcp.sport)][index].newFlowPacket(wirelen, ts)
+                    TCP_flow_pc[(ip.dst, ip.src, tcp.dport, tcp.sport)][index].addRttInfo(1, tcp.seq, tcp.ack)
+                    TCP_flow_bs[(ip.dst, ip.src, tcp.dport, tcp.sport)][index].addRttInfo(1, tcp.seq, tcp.ack)
                     TCP_flow_bs[(ip.dst, ip.src, tcp.dport, tcp.sport)][index].increaseOverheadCounts(headerSize, dataSize)
                     TCP_flow_f[(ip.dst, ip.src, tcp.dport, tcp.sport)].append(ip.data.flags)
                     TCP_flow_dir.append((ip.src, ip.dst, tcp.dport, tcp.sport))
@@ -190,131 +244,131 @@ def RTT_from_flow():
         dur = TCP_flow_bs[flow_key][0].ts[-1] - TCP_flow_bs[flow_key][0].ts[0]
         byte_total = TCP_flow_bs[flow_key][0].count
 
-        top_pc_num.append(ps_total)
-        top_bs_num.append(byte_total)
-        top_ts_num.append(dur)
+        if len(top_pc_num) < 3:
+            if len(top_pc_num) == 2:
+                if ps_total <= top_pc_num[0]:
+                    top_pc_num = [ps_total] + top_pc_num
+                    top_pc_key = [flow_key] + top_pc_key
+
+                elif ps_total >= top_pc_num[0] and ps_total <= top_pc_num[0]:
+                    top_pc_num= [top_pc_num[0]] + [ps_total] + [top_pc_num[1]]
+                    top_pc_key= [top_pc_key[0]] + [flow_key] + [top_pc_key[1]]
+
+                else:
+                    top_pc_num.append(ps_total)
+                    top_pc_key.append(flow_key)
+
+            elif len(top_pc_num) == 1:
+                if ps_total >= top_pc_num[0]:
+                    top_pc_num.append(ps_total)
+                    top_pc_key.append(flow_key)
+                else:
+                    top_pc_num = [ps_total] + top_pc_num
+                    top_pc_key = [flow_key] + top_pc_key
+            else:
+                top_pc_num.append(ps_total)
+                top_pc_key.append(flow_key)
+
+        else:
+            if ps_total >= top_pc_num[2]:
+                top_pc_num = top_pc_num[1:] + [ps_total]
+                top_pc_key = top_pc_key[1:] + [flow_key]
+            elif ps_total >= top_pc_num[1]:
+                top_pc_num = [top_pc_num[1]] + [ps_total] + [top_pc_num[2]]
+                top_pc_key = [top_pc_num[1]]+ [flow_key] + [top_pc_key[2]]
+            elif ps_total >= top_pc_num[0]:
+                top_pc_num = [ps_total] + top_pc_num[1:]
+                top_pc_key = [flow_key] + top_pc_key[1:]
 
 
-        # if len(top_pc_num) < 3:
-        #     if len(top_pc_num) == 2: 
-        #         if ps_total <= top_pc_num[0]:
-        #             top_pc_num = [ps_total] + top_pc_num
-        #             top_pc_key = [flow_key] + top_pc_key
+        if len(top_bs_num) < 3:
+            if len(top_bs_num) == 2:
+                if byte_total <= top_bs_num[0]:
+                    top_bs_num =[ byte_total] + top_bs_num
+                    top_bs_key = [flow_key] + top_bs_key
 
-        #         elif ps_total >= top_pc_num[0] and ps_total <= top_pc_num[0]:
-        #             top_pc_num= [top_pc_num[0]] + [ps_total] + [top_pc_num[1]]
-        #             top_pc_key= [top_pc_key[0]] + [flow_key] + [top_pc_key[1]]
+                elif byte_total >= top_bs_num[0] and byte_total <= top_bs_num[0]:
+                    top_bs_num= [top_bs_num[0]] + [byte_total] + [top_bs_num[1]]
+                    top_bs_key= [top_bs_key[0]] + [flow_key] + [top_bs_key[1]]
 
-        #         else:
-        #             top_pc_num.append(ps_total)
-        #             top_pc_key.append(flow_key)
+                else:
+                    top_bs_num.append(byte_total)
+                    top_bs_key.append(flow_key)
 
-        #     elif len(top_pc_num) == 1:
-        #         if ps_total >= top_pc_num[0]:
-        #             top_pc_num.append(ps_total)
-        #             top_pc_key.append(flow_key)
-        #         else:
-        #             top_pc_num = [ps_total] + top_pc_num
-        #             top_pc_key = [flow_key] + top_pc_key
-        #     else:
-        #         top_pc_num.append(ps_total)
-        #         top_pc_key.append(flow_key)
+            elif len(top_bs_num) == 1:
+                if byte_total >= top_bs_num[0]:
+                    top_bs_num.append(byte_total)
+                    top_bs_key.append(flow_key)
+                else:
+                    top_bs_num =[ byte_total] + top_bs_num
+                    top_bs_key = [flow_key] + top_bs_key
+            else:
+                top_bs_num.append(byte_total)
+                top_bs_key.append(flow_key)
 
-        # else:
-        #     if ps_total >= top_pc_num[2]:
-        #         top_pc_num = top_pc_num[1:] + [ps_total]  
-        #         top_pc_key = top_pc_key[1:] + [flow_key]
-        #     elif ps_total >= top_pc_num[1]:
-        #         top_pc_num = [top_pc_num[1]] + [ps_total] + [top_pc_num[2]]
-        #         top_pc_key = [top_pc_num[1]]+ [flow_key] + [top_pc_key[2]]
-        #     elif ps_total >= top_pc_num[0]:
-        #         top_pc_num = [ps_total] + top_pc_num[1:]
-        #         top_pc_key = [flow_key] + top_pc_key[1:]
+        else:
+            if byte_total >= top_bs_num[2]:
+                top_bs_num = top_bs_num[1:] + [byte_total]
+                top_bs_key = top_bs_key[1:] + [flow_key]
+            elif byte_total >= top_bs_num[1]:
+                top_bs_num = [top_bs_num[1]] + [byte_total] + [top_bs_num[2]]
+                top_bs_key = [top_bs_num[1]] + [flow_key] + [top_bs_key[2]]
+            elif byte_total >= top_bs_num[0]:
+                top_bs_num = [byte_total] + top_bs_num[1:]
+                top_bs_key = [flow_key] + top_bs_key[1:]
+
+        if len(top_ts_num) < 3:
+            if len(top_ts_num) == 2:
+                if dur <= top_ts_num[0]:
+                    top_ts_num = [dur] + top_ts_num
+                    top_ts_key = [flow_key] + top_ts_key
+
+                elif dur >= top_ts_num[0] and dur <= top_ts_num[0]:
+                    top_ts_num= [top_ts_num[0]] + [dur] + [top_ts_num[1]]
+                    top_ts_key= [top_ts_key[0]] + [flow_key] + [top_ts_key[1]]
+
+                else:
+                    top_ts_num.append(dur)
+                    top_ts_key.append(flow_key)
+
+            elif len(top_ts_num) == 1:
+                if dur >= top_ts_num[0]:
+                    top_ts_num.append(dur)
+                    top_ts_key.append(flow_key)
+                else:
+                    top_ts_num = [dur] + top_ts_num
+                    top_ts_key = [flow_key] + top_ts_key
+            else:
+                top_ts_num.append(dur)
+                top_ts_key.append(flow_key)
+
+        else:
+            if dur >= top_ts_num[2]:
+                top_ts_num = top_ts_num[1:] + [dur]
+                top_ts_key = top_ts_key[1:] + [flow_key]
+            elif dur >= top_ts_num[1]:
+                top_ts_num = [top_ts_num[1]] + [dur] + [top_ts_num[2]]
+                top_ts_key = [top_ts_num[1]] + [flow_key] + [top_ts_key[2]]
+            elif dur >= top_ts_num[0]:
+                top_ts_num = [dur] + top_ts_num[1:]
+                top_ts_key = [flow_key] + top_ts_key[1:]
+
+    #print("Top 3 packet size TCP: ")
+    #print(top_pc_key)
+    #print(top_pc_num)
+    #print("Top 3 byte size TCP: ")
+    #print(top_bs_key)
+    #print(top_bs_num)
+    #print("Top 3 duration TCP: ")
+    #print(top_ts_key)
+    #print(top_ts_num)
+
+    topPc = createTopDict(TCP_flow_pc, top_pc_key)
+    createDirectionFlow(topPc)
 
 
-        # if len(top_bs_num) < 3:
-        #     if len(top_bs_num) == 2: 
-        #         if byte_total <= top_bs_num[0]:
-        #             top_bs_num =[ byte_total] + top_bs_num
-        #             top_bs_key = [flow_key] + top_bs_key
 
-        #         elif byte_total >= top_bs_num[0] and byte_total <= top_bs_num[0]:
-        #             top_bs_num= [top_bs_num[0]] + [byte_total] + [top_bs_num[1]]
-        #             top_bs_key= [top_bs_key[0]] + [flow_key] + [top_bs_key[1]]
 
-        #         else:
-        #             top_bs_num.append(byte_total)
-        #             top_bs_key.append(flow_key)
-
-        #     elif len(top_bs_num) == 1:
-        #         if byte_total >= top_bs_num[0]:
-        #             top_bs_num.append(byte_total)
-        #             top_bs_key.append(flow_key)
-        #         else:
-        #             top_bs_num =[ byte_total] + top_bs_num
-        #             top_bs_key = [flow_key] + top_bs_key
-        #     else:
-        #         top_bs_num.append(byte_total)
-        #         top_bs_key.append(flow_key)
-
-        # else:
-        #     if byte_total >= top_bs_num[2]:
-        #         top_bs_num = top_bs_num[1:] + [byte_total]  
-        #         top_bs_key = top_bs_key[1:] + [flow_key]
-        #     elif byte_total >= top_bs_num[1]:
-        #         top_bs_num = [top_bs_num[1]] + [byte_total] + [top_bs_num[2]]
-        #         top_bs_key = [top_bs_num[1]] + [flow_key] + [top_bs_key[2]]
-        #     elif byte_total >= top_bs_num[0]:
-        #         top_bs_num = [byte_total] + top_bs_num[1:]
-        #         top_bs_key = [flow_key] + top_bs_key[1:]
-
-        # if len(top_ts_num) < 3:
-        #     if len(top_ts_num) == 2: 
-        #         if dur <= top_ts_num[0]:
-        #             top_ts_num = [dur] + top_ts_num
-        #             top_ts_key = [flow_key] + top_ts_key
-
-        #         elif dur >= top_ts_num[0] and dur <= top_ts_num[0]:
-        #             top_ts_num= [top_ts_num[0]] + [dur] + [top_ts_num[1]]
-        #             top_ts_key= [top_ts_key[0]] + [flow_key] + [top_ts_key[1]]
-
-        #         else:
-        #             top_ts_num.append(dur)
-        #             top_ts_key.append(flow_key)
-
-        #     elif len(top_ts_num) == 1:
-        #         if dur >= top_ts_num[0]:
-        #             top_ts_num.append(dur)
-        #             top_ts_key.append(flow_key)
-        #         else:
-        #             top_ts_num = [dur] + top_ts_num
-        #             top_ts_key = [flow_key] + top_ts_key
-        #     else:
-        #         top_ts_num.append(dur)
-        #         top_ts_key.append(flow_key)
-
-        # else:
-        #     if dur >= top_ts_num[2]:
-        #         top_ts_num = top_ts_num[1:] + [dur]  
-        #         top_ts_key = top_ts_key[1:] + [flow_key]
-        #     elif dur >= top_ts_num[1]:
-        #         top_ts_num = [top_ts_num[1]] + [dur] + [top_ts_num[2]]
-        #         top_ts_key = [top_ts_num[1]] + [flow_key] + [top_ts_key[2]]
-        #     elif dur >= top_ts_num[0]:
-        #         top_ts_num = [dur] + top_ts_num[1:]
-        #         top_ts_key = [flow_key] + top_ts_key[1:]
-
-    print("Top 3 packet size TCP: ")
-    print(top_pc_key)
-    print(max(top_pc_num))
-    print("Top 3 byte size TCP: ")
-    print(top_bs_key)
-    print(max(top_bs_num))
-    print("Top 3 duration TCP: ")
-    print(top_ts_key)
-    print(max(top_ts_num))
-            
 
 
 RTT_from_flow()
-

@@ -11,13 +11,19 @@ from pylab import *
 class DirectionalFlow:
     def __init__(self, ts, seq, ack):
         self.pkts = {}
-        self.pkts[seq] = (ts, ack)
+        self.pkts[seq] = [(ts, ack)]
+        self.max_seq = seq
+        self.index = {}
+        self.index[seq] = 0
 
     def addNewPacket(self, ts, seq, ack):
-        if seq in self.pkts:
+
+        if seq in self.pkts and seq < self.max_seq:
             del self.pkts[seq]
+        elif seq in self.pkts:
+            self.pkts[seq].append((ts, ack))
         else:
-            self.pkts[seq] = (ts, ack)
+            self.pkts[seq] = [(ts, ack)]
 
 
 class Flow:
@@ -83,17 +89,22 @@ def closestTimeStamp(list, currTime):
 
 def createDirectionFlow(flowDict):
     dict = {}
+
     print(len(flowDict))
 
     for key in flowDict:
         flow = flowDict[key][0]
 
         for i in range(len(flow.dir)):
+            seq_num = flow.seq_ack[i][0]
+            ack_num = flow.seq_ack[i][1]
+
             if flow.dir[i] == 0:
                 if key not in dict:
                     dict[key] = DirectionalFlow(flow.ts[i], flow.seq_ack[i][0], flow.seq_ack[i][1])
                 else:
                     dict[key].addNewPacket(flow.ts[i], flow.seq_ack[i][0], flow.seq_ack[i][1])
+
             else:
                 newKey = (key[1], key[0], key[3], key[2])
                 if newKey not in dict:

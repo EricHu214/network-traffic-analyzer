@@ -92,8 +92,6 @@ def closestTimeStamp(list, currTime):
 def createDirectionFlow(flowDict):
     dict = {}
 
-    print(len(flowDict))
-
     for key in flowDict:
         flow = flowDict[key][0]
 
@@ -114,7 +112,6 @@ def createDirectionFlow(flowDict):
                 else:
                     dict[newKey].addNewPacket(flow.ts[i], flow.seq_ack[i][0], flow.seq_ack[i][1])
 
-    print(len(dict))
     return dict
 
 def createTopDict(flowDict, keys):
@@ -127,13 +124,37 @@ def createTopDict(flowDict, keys):
 
 
 
-def matchAcks(dict):
+def plotRTT(x, y, y2, filename):
+    x_axis = []
+    y_axis = []
+    y_axis2 = []
+    step = floor(float(len(x))/1000) + 1
+
+
+    for i in range(len(x)):
+        if i % step == 0:
+            x_axis.append(x[i])
+            y_axis.append(y[i])
+            y_axis2.append(y2[i])
+
+
+    plt.xlabel("time (sec)")
+    plt.ylabel("RTT and SRTT (Sec)")
+    plt.plot(x_axis, y_axis, "g", label="RTT")
+    plt.plot(x_axis, y_axis2, "b", label="SRTT")
+    plt.savefig(filename)
+    plt.clf()
+
+
+def matchAcks(dict, filename):
     seen = {}
 
-
+    counter = 0
     for key in dict:
         if key not in seen:
             SRTT_list = []
+            RTT_list = []
+            x_axis = []
 
             flow1 = dict[key]
 
@@ -157,11 +178,13 @@ def matchAcks(dict):
                             if t_B > t_A:
                                 r = t_B - t_A
                             else:
-                                flow2.index[ack]+=1
-                                currIndex = flow2.index[ack]
+                                while currIndex < len(flow2.pkts[ack]) and t_B <= t_A:
+                                    t_B = flow2.pkts[ack][currIndex][0]
+                                    flow2.index[ack]+=1
+                                    currIndex = flow2.index[ack]
+
 
                                 if currIndex < len(flow2.pkts[ack]):
-                                    t_A = flow2.pkts[ack][currIndex][0]
                                     r = t_B - t_A
                                 else:
                                     continue
@@ -173,12 +196,18 @@ def matchAcks(dict):
                             else:
                                 srtt = (1 - alpha) * SRTT_list[-1] + alpha * r
 
+                            x_axis.append(t_A)
+                            RTT_list.append(r)
                             SRTT_list.append(srtt)
-                            #print(srtt)
 
                             flow2.index[ack]+=1
 
-            print(SRTT_list)
+
+
+            plt.title("src: " + str(key[2]) + ", dst: " + str(key[3]))
+            plotRTT(x_axis, RTT_list, SRTT_list, filename + " (" + str(counter) + ").png")
+            counter += 1
+            #print(SRTT_list)
 
 
 
@@ -436,9 +465,16 @@ def RTT_from_flow():
     topPc = createTopDict(TCP_flow_pc, top_pc_key)
 
     dict = createDirectionFlow(topPc)
+    matchAcks(dict, "top 3 packet number")
 
-    matchAcks(dict)
+    topBs = createTopDict(TCP_flow_pc, top_bs_key)
+    dict = createDirectionFlow(topBs)
+    matchAcks(dict, "top 3 byte size")
 
+
+    topTs = createTopDict(TCP_flow_pc, top_ts_key)
+    dict = createDirectionFlow(topTs)
+    matchAcks(dict, "top 3 longest flow duration")
 
 
     # R = []

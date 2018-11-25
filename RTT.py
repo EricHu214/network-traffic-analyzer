@@ -37,6 +37,7 @@ class Flow:
         self.totalTs = 0
         self.dir = [dir]
         self.seq_ack = [(seq, ack)]
+        self.numConnections = 0
 
 
     def output(self):
@@ -48,6 +49,7 @@ class Flow:
 
 
         return result
+
 
     def averageInterPacketTime(self):
         result = float(self.totalTs)/len(self.ts)
@@ -123,6 +125,25 @@ def createTopDict(flowDict, keys):
     return dict
 
 
+def getTop3(dict):
+    top3 = [(-1, -1), (-1, -1), (-1, -1)]
+
+
+    for key in dict:
+        numCon = len(dict[key])
+
+        if numCon > top3[0][1]:
+            top3[2] = top3[1]
+            top3[1] = top3[0]
+            top3[0] = (key, len(dict[key]))
+        elif numCon > top3[1][1]:
+            top3[2] = top3[1]
+            top3[1] = (key, numCon)
+        elif numCon > top3[2][1]:
+            top3[2] = (key, numCon)
+
+    return [x[0] for x in top3]
+
 
 def plotRTT(x, y, y2, filename):
     x_axis = []
@@ -146,68 +167,80 @@ def plotRTT(x, y, y2, filename):
     plt.clf()
 
 
-def matchAcks(dict, filename):
-    seen = {}
-
+def matchAcks(dict, filename, mode):
     counter = 0
+    x_medians = []
+    y_medians= []
+
     for key in dict:
-        if key not in seen:
-            SRTT_list = []
-            RTT_list = []
-            x_axis = []
+        firstTimeStamp = -1
+        median_SRTT = -1
+        SRTT_list = []
+        RTT_list = []
+        x_axis = []
 
-            flow1 = dict[key]
+        flow1 = dict[key]
 
-            oppKey = (key[1], key[0], key[3], key[2])
-            flow2 = dict[oppKey]
+        oppKey = (key[1], key[0], key[3], key[2])
+        flow2 = dict[oppKey]
 
-            seen[key] = 0
+        seen[key] = 0
 
-            for seq in flow1.pkts:
-                for i in range(len(flow1.pkts[seq])):
-                    tup = flow1.pkts[seq][i]
+        for seq in flow1.pkts:
+            for i in range(len(flow1.pkts[seq])):
+                tup = flow1.pkts[seq][i]
 
-                    ack = tup[1]
-                    t_A = tup[0]
-                    if ack in flow2.pkts:
-                        currIndex = flow2.index[ack]
+                ack = tup[1]
+                t_A = tup[0]
+                if ack in flow2.pkts:
+                    currIndex = flow2.index[ack]
 
-                        if currIndex < len(flow2.pkts[ack]):
-                            t_B = flow2.pkts[ack][currIndex][0]
+                    if currIndex < len(flow2.pkts[ack]):
+                        t_B = flow2.pkts[ack][currIndex][0]
 
-                            if t_B > t_A:
+                        if t_B > t_A:
+                            r = t_B - t_A
+                        else:
+                            while currIndex < len(flow2.pkts[ack]) and t_B <= t_A:
+                                t_B = flow2.pkts[ack][currIndex][0]
+                                flow2.index[ack]+=1
+                                currIndex = flow2.index[ack]
+
+
+                            if currIndex < len(flow2.pkts[ack]):
                                 r = t_B - t_A
                             else:
-                                while currIndex < len(flow2.pkts[ack]) and t_B <= t_A:
-                                    t_B = flow2.pkts[ack][currIndex][0]
-                                    flow2.index[ack]+=1
-                                    currIndex = flow2.index[ack]
+                                continue
+
+                        alpha = 0.125
+
+                        if len(SRTT_list) == 0:
+                            srtt = r
+                        else:
+                            srtt = (1 - alpha) * SRTT_list[-1] + alpha * r
+
+                        x_axis.append(t_A)
+                        RTT_list.append(r)
+                        SRTT_list.append(srtt)
+
+                        flow2.index[ack]+=1
+
+                firstTimeStamp = min(firstTimeStamp, t_A, t_B)
 
 
-                                if currIndex < len(flow2.pkts[ack]):
-                                    r = t_B - t_A
-                                else:
-                                    continue
-
-                            alpha = 0.125
-
-                            if len(SRTT_list) == 0:
-                                srtt = r
-                            else:
-                                srtt = (1 - alpha) * SRTT_list[-1] + alpha * r
-
-                            x_axis.append(t_A)
-                            RTT_list.append(r)
-                            SRTT_list.append(srtt)
-
-                            flow2.index[ack]+=1
-
-
-
+        if mode == 0:
             plt.title("src: " + str(key[2]) + ", dst: " + str(key[3]))
             plotRTT(x_axis, RTT_list, SRTT_list, filename + " (" + str(counter) + ").png")
             counter += 1
-            #print(SRTT_list)
+        elif mode == 1:
+            median_SRTT = median(SRTT_list)
+            x_medians.append(firstTimeStamp)
+            y_medians.append(median_SRTT)
+
+    return x_medians, y_medians
+
+
+
 
 
 
@@ -255,6 +288,38 @@ def plotFlow(flowDict, min, max, step, protocol, flowType, mode):
     plt.plot(x_data, y_data)
     plt.savefig("flow size of " + protocol + " " + flowType + " count.png")
     plt.clf()
+
+
+def getHosts(flows):
+
+    hosts = {}
+
+
+    for key in flows:
+        newKey = (key[0], key[1])
+
+        if newKey not in hosts:
+            hosts[newKey] = {}
+
+        portKey = (key[2], key[3])
+        hosts[newKey][portKey] = flows[key][0]
+
+    return hosts
+
+
+
+def graphHosts(hosts):
+    for key in hosts:
+        fileName = "median plot for pair " + str(key[0]) + ", " + str(key[1]) + ".png"
+
+        x_medians, y_medians = matchAcks(hosts[key], fileName, 1)
+
+        plt.xlabel("time (sec)")
+        plt.ylabel("RTT and SRTT (Sec)")
+        plt.plot(x_medians, y_medians, "g", label="SRTT")
+        plt.savefig(fileName)
+        plt.clf()
+
 
 
 def RTT_from_flow():
@@ -456,88 +521,77 @@ def RTT_from_flow():
                 top_ts_num = [dur] + top_ts_num[1:]
                 top_ts_key = [flow_key] + top_ts_key[1:]
 
-        # This is for the top connections pairs 
-        connect = 0
-        for f in TCP_flow_f[flow_key]:
-            if ((f & dpkt.tcp.TH_SYN ) != 0):
-                connect += 1
+        # This is for the top connections pairs
 
-        if len(top_con_num) < 3:
-            if len(top_con_num) == 2:
-                if connect <= top_con_num[0]:
-                    top_con_num = [connect] + top_con_num
-                    top_con_key = [flow_key] + top_con_key
+        hosts = getHosts(TCP_flow_pc)
 
-                elif connect >= top_con_num[0] and connect <= top_con_num[0]:
-                    top_con_num= [top_con_num[0]] + [connect] + [top_con_num[1]]
-                    top_con_key= [top_con_key[0]] + [flow_key] + [top_con_key[1]]
+        top3Key = getTop3(hosts)
 
-                else:
-                    top_con_num.append(connect)
-                    top_con_key.append(flow_key)
+        topHosts = createTopDict(hosts, top3Key)
+        dict = createDirectionFlow(topHosts)
 
-            elif len(top_con_num) == 1:
-                if connect >= top_con_num[0]:
-                    top_con_num.append(connect)
-                    top_con_key.append(flow_key)
-                else:
-                    top_con_num = [connect] + top_con_num
-                    top_con_key = [flow_key] + top_con_key
-            else:
-                top_con_num.append(connect)
-                top_con_key.append(flow_key)
+        graphHosts(topHosts)
 
-        else:
-            if connect >= top_con_num[2]:
-                top_con_num = top_con_num[1:] + [connect]
-                top_con_key = top_con_key[1:] + [flow_key]
-            elif connect >= top_con_num[1]:
-                top_con_num = [top_con_num[1]] + [connect] + [top_con_num[2]]
-                top_con_key = [top_con_key[1]] + [flow_key] + [top_con_key[2]]
-            elif connect >= top_con_num[0]:
-                top_con_num = [connect] + top_con_num[1:]
-                top_con_key = [flow_key] + top_con_key[1:]
+        #connect = 0
+        #for f in TCP_flow_f[flow_key]:
+        #    if ((f & dpkt.tcp.TH_SYN ) != 0):
+        #        connect += 1
 
-    #print("Top 3 packet size TCP: ")
-    #print(top_pc_key)
-    #print(top_pc_num)
-    #print("Top 3 byte size TCP: ")
-    #print(top_bs_key)
-    #print(top_bs_num)
-    #print("Top 3 duration TCP: ")
-    #print(top_ts_key)
-    #print(top_ts_num)
+        #if len(top_con_num) < 3:
+        #    if len(top_con_num) == 2:
+        #        if connect <= top_con_num[0]:
+        #            top_con_num = [connect] + top_con_num
+        #            top_con_key = [flow_key] + top_con_key
 
-    topPc = createTopDict(TCP_flow_pc, top_pc_key)
+        #        elif connect >= top_con_num[0] and connect <= top_con_num[0]:
+        #            top_con_num= [top_con_num[0]] + [connect] + [top_con_num[1]]
+        #            top_con_key= [top_con_key[0]] + [flow_key] + [top_con_key[1]]
 
-    dict = createDirectionFlow(topPc)
-    matchAcks(dict, "top 3 packet number")
+        #        else:
+        #            top_con_num.append(connect)
+        #            top_con_key.append(flow_key)
 
-    topBs = createTopDict(TCP_flow_pc, top_bs_key)
-    dict = createDirectionFlow(topBs)
-    matchAcks(dict, "top 3 byte size")
+        #    elif len(top_con_num) == 1:
+        #        if connect >= top_con_num[0]:
+        #            top_con_num.append(connect)
+        #            top_con_key.append(flow_key)
+        #        else:
+        #            top_con_num = [connect] + top_con_num
+        #            top_con_key = [flow_key] + top_con_key
+        #    else:
+        #        top_con_num.append(connect)
+        #        top_con_key.append(flow_key)
+
+        #else:
+        #    if connect >= top_con_num[2]:
+        #        top_con_num = top_con_num[1:] + [connect]
+        #        top_con_key = top_con_key[1:] + [flow_key]
+        #    elif connect >= top_con_num[1]:
+        #        top_con_num = [top_con_num[1]] + [connect] + [top_con_num[2]]
+        #        top_con_key = [top_con_key[1]] + [flow_key] + [top_con_key[2]]
+        #    elif connect >= top_con_num[0]:
+        #        top_con_num = [connect] + top_con_num[1:]
+        #        top_con_key = [flow_key] + top_con_key[1:]
 
 
-    topTs = createTopDict(TCP_flow_pc, top_ts_key)
-    dict = createDirectionFlow(topTs)
-    matchAcks(dict, "top 3 longest flow duration")
+    #topPc = createTopDict(TCP_flow_pc, top_pc_key)
+    #dict = createDirectionFlow(topPc)
+    #matchAcks(dict, "top 3 packet number")
+
+    #topBs = createTopDict(TCP_flow_pc, top_bs_key)
+    #dict = createDirectionFlow(topBs)
+    #matchAcks(dict, "top 3 byte size")
+
+
+    #topTs = createTopDict(TCP_flow_pc, top_ts_key)
+    #dict = createDirectionFlow(topTs)
+    #matchAcks(dict, "top 3 longest flow duration")
 
 
 
 
-    # R = []
+    #print(top_con_num)
 
-    # t1 = a.ts
-    # t2 = b_of_flow[(a.sq_ac[1],a.sq_ac[0])].ts 
-
-    # r = t2 -t1
-    # alpha = 0.125
-
-    # SRTT <- (1 - alpha) * SRTT + alpha * r
-
-    # R.append(r)
-
-    # top_pc_rtt_l[flow_key] = R 
 
 
 

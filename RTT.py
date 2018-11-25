@@ -20,10 +20,12 @@ class DirectionalFlow:
 
         if seq in self.pkts and seq < self.max_seq:
             del self.pkts[seq]
+            del self.index[seq]
         elif seq in self.pkts:
             self.pkts[seq].append((ts, ack))
         else:
             self.pkts[seq] = [(ts, ack)]
+            self.index[seq] = 0
 
 
 class Flow:
@@ -122,6 +124,64 @@ def createTopDict(flowDict, keys):
         dict[key] = flowDict[key]
 
     return dict
+
+
+
+def matchAcks(dict):
+    seen = {}
+
+
+    for key in dict:
+        if key not in seen:
+            SRTT_list = []
+
+            flow1 = dict[key]
+
+            oppKey = (key[1], key[0], key[3], key[2])
+            flow2 = dict[oppKey]
+
+            seen[key] = 0
+            seen[oppKey] = 0
+
+            for seq in flow1.pkts:
+                for i in range(len(flow1.pkts[seq])):
+                    tup = flow1.pkts[seq][i]
+
+                    ack = tup[1]
+                    t_A = tup[0]
+                    if ack in flow2.pkts:
+                        currIndex = flow2.index[ack]
+
+                        if currIndex < len(flow2.pkts[ack]):
+                            t_B = flow2.pkts[ack][currIndex][0]
+
+                            if t_B > t_A:
+                                r = t_B - t_A
+                            else:
+                                flow2.index[ack]+=1
+                                currIndex = flow2.index[ack]
+
+                                if currIndex < len(flow2.pkts[ack]):
+                                    t_A = flow2.pkts[ack][currIndex][0]
+                                    r = t_B - t_A
+                                else:
+                                    continue
+
+                            alpha = 0.125
+
+                            if len(SRTT_list) == 0:
+                                srtt = r
+                            else:
+                                srtt = (1 - alpha) * SRTT_list[-1] + alpha * r
+
+                            SRTT_list.append(srtt)
+                            #print(srtt)
+
+                            flow2.index[ack]+=1
+
+            print(SRTT_list)
+
+
 
 
 def f_range(beginning, end, step):
@@ -375,22 +435,26 @@ def RTT_from_flow():
     #print(top_ts_num)
 
     topPc = createTopDict(TCP_flow_pc, top_pc_key)
-    print(createDirectionFlow(topPc))
+
+    dict = createDirectionFlow(topPc)
+
+    matchAcks(dict)
 
 
-    R = []
 
-    t1 = a.ts
-    t2 = b_of_flow[(a.sq_ac[1],a.sq_ac[0])].ts
+    # R = []
 
-    r = t2 -t1
-    alpha = 0.125
+    # t1 = a.ts
+    # t2 = b_of_flow[(a.sq_ac[1],a.sq_ac[0])].ts
 
-    SRTT <- (1 - alpha) * SRTT + alpha * r
+    # r = t2 -t1
+    # alpha = 0.125
 
-    R.append(r)
+    # SRTT <- (1 - alpha) * SRTT + alpha * r
 
-    top_pc_rtt_l[flow_key] = R 
+    # R.append(r)
+
+    # top_pc_rtt_l[flow_key] = R 
 
 
 

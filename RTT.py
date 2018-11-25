@@ -183,7 +183,7 @@ def matchAcks(dict, filename, mode):
     y_medians= []
 
     for key in dict:
-        firstTimeStamp = 9999
+        firstTimeStamp = sys.maxsize
         median_SRTT = -1
         SRTT_list = []
         RTT_list = []
@@ -200,6 +200,7 @@ def matchAcks(dict, filename, mode):
 
                 ack = tup[1]
                 t_A = tup[0]
+
                 if ack in flow2.pkts:
                     currIndex = flow2.index[ack]
 
@@ -233,7 +234,7 @@ def matchAcks(dict, filename, mode):
 
                         flow2.index[ack]+=1
 
-                        firstTimeStamp = min(firstTimeStamp, t_A, t_B)
+                        firstTimeStamp = min(firstTimeStamp, t_A, t_A)
 
 
         if mode == 0:
@@ -241,9 +242,10 @@ def matchAcks(dict, filename, mode):
             plotRTT(x_axis, RTT_list, SRTT_list, filename + " (" + str(counter) + ").png")
             counter += 1
         elif mode == 1:
-            median_SRTT = median(SRTT_list)
-            x_medians.append(firstTimeStamp)
-            y_medians.append(median_SRTT)
+            if len(SRTT_list) != 0:
+                median_SRTT = median(SRTT_list)
+                x_medians.append(firstTimeStamp)
+                y_medians.append(median_SRTT)
 
     return x_medians, y_medians
 
@@ -322,6 +324,7 @@ def graphHosts(hosts):
 
         x_medians, y_medians = matchAcks(dict, fileName, 1)
 
+
         plt.xlabel("time (sec)")
         plt.ylabel("RTT and SRTT (Sec)")
         plt.plot(x_medians, y_medians, "g", label="SRTT")
@@ -329,6 +332,8 @@ def graphHosts(hosts):
         plt.clf()
 
         counter += 1
+
+        print("hey")
 
 
 
@@ -533,13 +538,13 @@ def RTT_from_flow():
 
         # This is for the top connections pairs
 
-        hosts = getHosts(TCP_flow_pc)
+    hosts = getHosts(TCP_flow_pc)
 
-        top3Key = getTop3(hosts)
+    top3Key = getTop3(hosts)
 
-        topHosts = createTopDict(hosts, top3Key)
+    topHosts = createTopDict(hosts, top3Key)
 
-        graphHosts(topHosts)
+    graphHosts(topHosts)
 
         #connect = 0
         #for f in TCP_flow_f[flow_key]:

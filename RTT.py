@@ -91,11 +91,14 @@ def closestTimeStamp(list, currTime):
 
     return result
 
-def createDirectionFlow(flowDict):
+def createDirectionFlow(flowDict, hasExtraList):
     dict = {}
 
     for key in flowDict:
-        flow = flowDict[key][0]
+        if hasExtraList:
+            flow = flowDict[key][0]
+        else:
+            flow = flowDict[key]
 
         for i in range(len(flow.dir)):
             seq_num = flow.seq_ack[i][0]
@@ -108,7 +111,7 @@ def createDirectionFlow(flowDict):
                     dict[key].addNewPacket(flow.ts[i], flow.seq_ack[i][0], flow.seq_ack[i][1])
 
             else:
-                newKey = (key[1], key[0], key[3], key[2])
+                newKey = reverseKey(key)
                 if newKey not in dict:
                     dict[newKey] = DirectionalFlow(flow.ts[i], flow.seq_ack[i][0], flow.seq_ack[i][1])
                 else:
@@ -145,6 +148,13 @@ def getTop3(dict):
     return [x[0] for x in top3]
 
 
+def reverseKey(key):
+    if len(key) == 4:
+        return (key[1], key[0], key[3], key[2])
+    else:
+        return (key[1], key[0])
+
+
 def plotRTT(x, y, y2, filename):
     x_axis = []
     y_axis = []
@@ -173,7 +183,7 @@ def matchAcks(dict, filename, mode):
     y_medians= []
 
     for key in dict:
-        firstTimeStamp = -1
+        firstTimeStamp = 9999
         median_SRTT = -1
         SRTT_list = []
         RTT_list = []
@@ -181,10 +191,8 @@ def matchAcks(dict, filename, mode):
 
         flow1 = dict[key]
 
-        oppKey = (key[1], key[0], key[3], key[2])
+        oppKey = reverseKey(key)
         flow2 = dict[oppKey]
-
-        seen[key] = 0
 
         for seq in flow1.pkts:
             for i in range(len(flow1.pkts[seq])):
@@ -225,7 +233,7 @@ def matchAcks(dict, filename, mode):
 
                         flow2.index[ack]+=1
 
-                firstTimeStamp = min(firstTimeStamp, t_A, t_B)
+                        firstTimeStamp = min(firstTimeStamp, t_A, t_B)
 
 
         if mode == 0:
@@ -238,10 +246,6 @@ def matchAcks(dict, filename, mode):
             y_medians.append(median_SRTT)
 
     return x_medians, y_medians
-
-
-
-
 
 
 
@@ -309,16 +313,22 @@ def getHosts(flows):
 
 
 def graphHosts(hosts):
-    for key in hosts:
-        fileName = "median plot for pair " + str(key[0]) + ", " + str(key[1]) + ".png"
+    counter = 1
 
-        x_medians, y_medians = matchAcks(hosts[key], fileName, 1)
+    for key in hosts:
+        dict = createDirectionFlow(hosts[key], False)
+        #fileName = "median plot for pair " + inet_to_str(key[0]) + ", " + inet_to_str(key[1]) + ".png"
+        fileName = "median plot for pair " + str(counter) + ".png"
+
+        x_medians, y_medians = matchAcks(dict, fileName, 1)
 
         plt.xlabel("time (sec)")
         plt.ylabel("RTT and SRTT (Sec)")
         plt.plot(x_medians, y_medians, "g", label="SRTT")
         plt.savefig(fileName)
         plt.clf()
+
+        counter += 1
 
 
 
@@ -547,7 +557,6 @@ def RTT_from_flow():
         top3Key = getTop3(hosts)
 
         topHosts = createTopDict(hosts, top3Key)
-        dict = createDirectionFlow(topHosts)
 
         graphHosts(topHosts)
 
@@ -594,16 +603,16 @@ def RTT_from_flow():
 
 
     #topPc = createTopDict(TCP_flow_pc, top_pc_key)
-    #dict = createDirectionFlow(topPc)
+    #dict = createDirectionFlow(topPc, True)
     #matchAcks(dict, "top 3 packet number")
 
     #topBs = createTopDict(TCP_flow_pc, top_bs_key)
-    #dict = createDirectionFlow(topBs)
+    #dict = createDirectionFlow(topBs, True)
     #matchAcks(dict, "top 3 byte size")
 
 
     #topTs = createTopDict(TCP_flow_pc, top_ts_key)
-    #dict = createDirectionFlow(topTs)
+    #dict = createDirectionFlow(topTs, True)
     #matchAcks(dict, "top 3 longest flow duration")
 
 

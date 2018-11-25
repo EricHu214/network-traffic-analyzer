@@ -324,17 +324,28 @@ def graphHosts(hosts):
 
         x_medians, y_medians = matchAcks(dict, fileName, 1)
 
-
+        x, y = reduceData(x_medians, y_medians)
         plt.xlabel("time (sec)")
         plt.ylabel("RTT and SRTT (Sec)")
-        plt.plot(x_medians, y_medians, "g", label="SRTT")
+        plt.plot(x, y, "g", label="SRTT")
         plt.savefig(fileName)
         plt.clf()
 
         counter += 1
 
-        print("hey")
 
+def reduceData(x, y):
+    new_x = []
+    new_y = []
+
+    step = floor(float(len(x))/1000) + 1
+
+    for i in range(len(x)):
+        if i % step == 0:
+            new_x.append(x[i])
+            new_y.append(y[i])
+
+    return new_x, new_y
 
 
 def RTT_from_flow():

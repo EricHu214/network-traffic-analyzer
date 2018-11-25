@@ -536,21 +536,6 @@ def RTT_from_flow():
                 top_ts_num = [dur] + top_ts_num[1:]
                 top_ts_key = [flow_key] + top_ts_key[1:]
 
-<<<<<<< HEAD
-        # This is for the top connections pairs 
-        
-        connect = 0
-        cur_hosts = (f[1],f[2])
-        re_cur_hosts = (f[2],f[1])
-        if not (cur_hosts in seen or re_cur_hosts in seen):
-            for f in TCP_flow_f[flow_key]:
-                
-
-                if ((f & dpkt.tcp.TH_SYN ) != 0):
-                connect += 1
-=======
-        # This is for the top connections pairs
->>>>>>> 0c0e3a0ef6ddbf8968e49cde873dd6be5ac73cf0
 
         hosts = getHosts(TCP_flow_pc)
 

@@ -341,6 +341,11 @@ def RTT_from_flow():
                     TCP_flow_f[(ip.dst, ip.src, tcp.dport, tcp.sport)].append(ip.data.flags)
                     TCP_flow_dir.append((ip.src, ip.dst, tcp.dport, tcp.sport))
 
+    
+    # for the connections
+    seen = {}
+    not_seen_flow = TCP_flow_f.copy()
+
     for flow_key in TCP_flow_pc:
         ps_total = TCP_flow_pc[flow_key][0].count
         dur = TCP_flow_bs[flow_key][0].ts[-1] - TCP_flow_bs[flow_key][0].ts[0]
@@ -457,9 +462,15 @@ def RTT_from_flow():
                 top_ts_key = [flow_key] + top_ts_key[1:]
 
         # This is for the top connections pairs 
+        
         connect = 0
-        for f in TCP_flow_f[flow_key]:
-            if ((f & dpkt.tcp.TH_SYN ) != 0):
+        cur_hosts = (f[1],f[2])
+        re_cur_hosts = (f[2],f[1])
+        if not (cur_hosts in seen or re_cur_hosts in seen):
+            for f in TCP_flow_f[flow_key]:
+                
+
+                if ((f & dpkt.tcp.TH_SYN ) != 0):
                 connect += 1
 
         if len(top_con_num) < 3:

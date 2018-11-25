@@ -205,6 +205,7 @@ def matchAcks(dict, filename):
 
 
 
+            plt.title("src: " + str(key[2]) + ", dst: " + str(key[3]))
             plotRTT(x_axis, RTT_list, SRTT_list, filename + " (" + str(counter) + ").png")
             counter += 1
             #print(SRTT_list)
@@ -464,9 +465,16 @@ def RTT_from_flow():
 
     topPc = createTopDict(TCP_flow_pc, top_pc_key)
     dict = createDirectionFlow(topPc)
-
     matchAcks(dict, "top 3 packet number")
 
+    topBs = createTopDict(TCP_flow_pc, top_bs_key)
+    dict = createDirectionFlow(topBs)
+    matchAcks(dict, "top 3 byte size")
+
+
+    topTs = createTopDict(TCP_flow_pc, top_ts_key)
+    dict = createDirectionFlow(topTs)
+    matchAcks(dict, "top 3 longest flow duration")
 
 
 

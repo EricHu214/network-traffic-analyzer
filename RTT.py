@@ -141,7 +141,6 @@ def matchAcks(dict):
             flow2 = dict[oppKey]
 
             seen[key] = 0
-            seen[oppKey] = 0
 
             for seq in flow1.pkts:
                 for i in range(len(flow1.pkts[seq])):
@@ -445,7 +444,7 @@ def RTT_from_flow():
     # R = []
 
     # t1 = a.ts
-    # t2 = b_of_flow[(a.sq_ac[1],a.sq_ac[0])].ts
+    # t2 = b_of_flow[(a.sq_ac[1],a.sq_ac[0])].ts 
 
     # r = t2 -t1
     # alpha = 0.125

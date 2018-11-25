@@ -375,7 +375,7 @@ def RTT_from_flow():
                 top_pc_key = top_pc_key[1:] + [flow_key]
             elif ps_total >= top_pc_num[1]:
                 top_pc_num = [top_pc_num[1]] + [ps_total] + [top_pc_num[2]]
-                top_pc_key = [top_pc_num[1]]+ [flow_key] + [top_pc_key[2]]
+                top_pc_key = [top_pc_key[1]]+ [flow_key] + [top_pc_key[2]]
             elif ps_total >= top_pc_num[0]:
                 top_pc_num = [ps_total] + top_pc_num[1:]
                 top_pc_key = [flow_key] + top_pc_key[1:]
@@ -412,7 +412,7 @@ def RTT_from_flow():
                 top_bs_key = top_bs_key[1:] + [flow_key]
             elif byte_total >= top_bs_num[1]:
                 top_bs_num = [top_bs_num[1]] + [byte_total] + [top_bs_num[2]]
-                top_bs_key = [top_bs_num[1]] + [flow_key] + [top_bs_key[2]]
+                top_bs_key = [top_bs_key[1]] + [flow_key] + [top_bs_key[2]]
             elif byte_total >= top_bs_num[0]:
                 top_bs_num = [byte_total] + top_bs_num[1:]
                 top_bs_key = [flow_key] + top_bs_key[1:]
@@ -448,7 +448,7 @@ def RTT_from_flow():
                 top_ts_key = top_ts_key[1:] + [flow_key]
             elif dur >= top_ts_num[1]:
                 top_ts_num = [top_ts_num[1]] + [dur] + [top_ts_num[2]]
-                top_ts_key = [top_ts_num[1]] + [flow_key] + [top_ts_key[2]]
+                top_ts_key = [top_ts_key[1]] + [flow_key] + [top_ts_key[2]]
             elif dur >= top_ts_num[0]:
                 top_ts_num = [dur] + top_ts_num[1:]
                 top_ts_key = [flow_key] + top_ts_key[1:]

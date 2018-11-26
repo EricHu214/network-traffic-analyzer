@@ -17,6 +17,7 @@ class DirectionalFlow:
         self.index[seq] = 0
 
     def addNewPacket(self, ts, seq, ack):
+        self.max_seq = max(self.max_seq, seq)
 
         if seq in self.pkts and seq < self.max_seq:
             del self.pkts[seq]
@@ -84,7 +85,6 @@ def closestTimeStamp(list, currTime):
     result = -1
 
     for i in range(len(list)):
-        #print(str(currTime) + ' : ' + str(list[i].ts[-1]))
         if abs(currTime - list[i].ts[-1]) < 5400:
             result = i
             break
@@ -116,6 +116,16 @@ def createDirectionFlow(flowDict, hasExtraList):
                     dict[newKey] = DirectionalFlow(flow.ts[i], flow.seq_ack[i][0], flow.seq_ack[i][1])
                 else:
                     dict[newKey].addNewPacket(flow.ts[i], flow.seq_ack[i][0], flow.seq_ack[i][1])
+
+    return dict
+
+def createDirectionFlow2(flowDict):
+    dict = {}
+
+    for key in flowDict:
+        flow = flowDict[key]
+
+        
 
     return dict
 
@@ -169,6 +179,7 @@ def plotRTT(x, y, y2, filename):
             y_axis2.append(y2[i])
 
 
+    #print(len(x))
     plt.xlabel("time (sec)")
     plt.ylabel("RTT and SRTT (Sec)")
     plt.plot(x_axis, y_axis, "g", label="RTT")
@@ -202,24 +213,22 @@ def matchAcks(dict, filename, mode):
                 t_A = tup[0]
 
                 if ack in flow2.pkts:
-                    currIndex = flow2.index[ack]
 
-                    if currIndex < len(flow2.pkts[ack]):
-                        t_B = flow2.pkts[ack][currIndex][0]
+                    if dict[oppKey].index[ack] < len(flow2.pkts[ack]):
+                        t_B = flow2.pkts[ack][dict[oppKey].index[ack]][0]
 
                         if t_B > t_A:
                             r = t_B - t_A
                         else:
-                            while currIndex < len(flow2.pkts[ack]) and t_B <= t_A:
-                                t_B = flow2.pkts[ack][currIndex][0]
-                                flow2.index[ack]+=1
-                                currIndex = flow2.index[ack]
+                            while dict[oppKey].index[ack] < len(dict[oppKey].pkts[ack]) and t_B < t_A:
+                                t_B = dict[oppKey].pkts[ack][dict[oppKey].index[ack]][0]
+                                dict[oppKey].index[ack]+=1
 
 
-                            if currIndex < len(flow2.pkts[ack]):
+                            if dict[oppKey].index[ack] < len(flow2.pkts[ack]):
                                 r = t_B - t_A
-                            else:
-                                continue
+                            #else:
+                            #    continue
 
                         alpha = 0.125
 
@@ -232,9 +241,9 @@ def matchAcks(dict, filename, mode):
                         RTT_list.append(r)
                         SRTT_list.append(srtt)
 
-                        flow2.index[ack]+=1
+                        dict[oppKey].index[ack]+=1
 
-                        firstTimeStamp = min(firstTimeStamp, t_A, t_A)
+                        firstTimeStamp = min(firstTimeStamp, t_A, t_B)
 
 
         if mode == 0:
@@ -432,7 +441,7 @@ def RTT_from_flow():
                     TCP_flow_f[(ip.dst, ip.src, tcp.dport, tcp.sport)].append(ip.data.flags)
                     TCP_flow_dir.append((ip.src, ip.dst, tcp.dport, tcp.sport))
 
-    
+
     # for the connections
     seen = {}
     not_seen_flow = TCP_flow_f.copy()
@@ -553,73 +562,25 @@ def RTT_from_flow():
                 top_ts_key = [flow_key] + top_ts_key[1:]
 
 
-    hosts = getHosts(TCP_flow_pc)
+    topPc = createTopDict(TCP_flow_pc, top_pc_key)
+    dict = createDirectionFlow(topPc, True)
+    matchAcks(dict, "top 3 packet number", 0)
 
-    top3Key = getTop3(hosts)
-
-    topHosts = createTopDict(hosts, top3Key)
-
-    graphHosts(topHosts)
-
-        #connect = 0
-        #for f in TCP_flow_f[flow_key]:
-        #    if ((f & dpkt.tcp.TH_SYN ) != 0):
-        #        connect += 1
-
-        #if len(top_con_num) < 3:
-        #    if len(top_con_num) == 2:
-        #        if connect <= top_con_num[0]:
-        #            top_con_num = [connect] + top_con_num
-        #            top_con_key = [flow_key] + top_con_key
-
-        #        elif connect >= top_con_num[0] and connect <= top_con_num[0]:
-        #            top_con_num= [top_con_num[0]] + [connect] + [top_con_num[1]]
-        #            top_con_key= [top_con_key[0]] + [flow_key] + [top_con_key[1]]
-
-        #        else:
-        #            top_con_num.append(connect)
-        #            top_con_key.append(flow_key)
-
-        #    elif len(top_con_num) == 1:
-        #        if connect >= top_con_num[0]:
-        #            top_con_num.append(connect)
-        #            top_con_key.append(flow_key)
-        #        else:
-        #            top_con_num = [connect] + top_con_num
-        #            top_con_key = [flow_key] + top_con_key
-        #    else:
-        #        top_con_num.append(connect)
-        #        top_con_key.append(flow_key)
-
-        #else:
-        #    if connect >= top_con_num[2]:
-        #        top_con_num = top_con_num[1:] + [connect]
-        #        top_con_key = top_con_key[1:] + [flow_key]
-        #    elif connect >= top_con_num[1]:
-        #        top_con_num = [top_con_num[1]] + [connect] + [top_con_num[2]]
-        #        top_con_key = [top_con_key[1]] + [flow_key] + [top_con_key[2]]
-        #    elif connect >= top_con_num[0]:
-        #        top_con_num = [connect] + top_con_num[1:]
-        #        top_con_key = [flow_key] + top_con_key[1:]
+    topBs = createTopDict(TCP_flow_pc, top_bs_key)
+    dict = createDirectionFlow(topBs, True)
+    matchAcks(dict, "top 3 byte size", 0)
 
 
-    #topPc = createTopDict(TCP_flow_pc, top_pc_key)
-    #dict = createDirectionFlow(topPc, True)
-    #matchAcks(dict, "top 3 packet number")
-
-    #topBs = createTopDict(TCP_flow_pc, top_bs_key)
-    #dict = createDirectionFlow(topBs, True)
-    #matchAcks(dict, "top 3 byte size")
+    topTs = createTopDict(TCP_flow_pc, top_ts_key)
+    dict = createDirectionFlow(topTs, True)
+    matchAcks(dict, "top 3 longest flow duration", 0)
 
 
-    #topTs = createTopDict(TCP_flow_pc, top_ts_key)
-    #dict = createDirectionFlow(topTs, True)
-    #matchAcks(dict, "top 3 longest flow duration")
+    #hosts = getHosts(TCP_flow_pc)
+    #top3Key = getTop3(hosts)
+    #topHosts = createTopDict(hosts, top3Key)
+    #graphHosts(topHosts)
 
-
-
-
-    #print(top_con_num)
 
 
 
